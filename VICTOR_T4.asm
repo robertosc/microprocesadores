@@ -45,77 +45,94 @@ Teclas:         DB $01,$02,$03,$04,$05,$06,$07,$08,$09,$0B,$00,$0E
                 DW PH0_ISR  ;direccion de la subrutina de servicio a interrupcion del puerto H.
 ;------------------------------------------------------------------------------
 
+;------------------------------------------------------------------------------
+;                          PROGRAMA Principal
+;------------------------------------------------------------------------------
 
+                        org $2000
+
+;Configuracion de Hardware
 ;------------------------------------------------------------------------------
-;                          Configuracion del hardware
-;------------------------------------------------------------------------------
-                ORG $2000
-;Configuracion RTI:
-                BSET CRGINT,$80 ;se habilita RTI
+                BSET CRGINT,$80 ;Habilitamos las RTI
                 MOVB #$31,RTICTL      ;periodo de 1.024 ms
+                BSET PIEH,$01   ;se habilita keywakeup en puerto H
+                MOVB #$F0,DDRA   ;parte alta de A como salida y parte baja como entrada para matriz
+                BSET PUCR,$01   ;Activamos las resistencias de pull-up en puerto A
 
-;Configuracion keywakeup en puerto H:
-                BSET PIEH,$01   ;se habilita keywakeup en PH0
-
-;Configuracion del teclado en puerto A:
-                MOVB #$F0,DDRA   ;parte alta de A como salida y parte baja como entrada
-                BSET PUCR,$01   ;resistencias de pull-up en puerto A. Son necesarias para que haya un 1 en el PAD cuando no se presiona ningun boton del teclado.
-                LDS #$3BFF
-                CLI
-
+;Inicializacion de variables y banderas
 ;------------------------------------------------------------------------------
 
+        ;Ponemos todas las variables en 0
+        Clr Cont_Reb
+        Clr Cont_TCL
+        Clr Patron
+        Clr Banderas
+        ;tecla y tecla_in se cargan en FF por ser un valor desconocido para el teclado
+        Movb #$FF, Tecla
+        Movb #$FF, Tecla_IN
 
-;*******************************************************************************
-;                             Programa principal
-;*******************************************************************************
-;inicializacion de variables:
-                LDX #Num_Array
-                CLRA
-init_fill:      MOVB #$FF,A,X
-                INCA
-                CMPA MAX_TCL
-                BNE init_fill
-                MOVB #$FF,Tecla
-                MOVB #$FF,Tecla_IN
-                CLR Cont_Reb
-                CLR Cont_TCL
-                CLR Patron
-                CLR Banderas
-wait:           BRSET Banderas,$04,wait ; Si ARRAY_OK=1 no se espera lectura
-                JSR TAREA_TECLADO
-                BRA wait
+        Ldaa MAX_TCL
+        Ldx #Num_Array
+
+        ;Cargamos el vector NUM ARRAY con FF
+fill_array:
+        Movb #$FF,1,X+
+        Dbne a, fill_array
+
+;Puntero de pila e interrupciones habilitadas
+;------------------------------------------------------------------------------
+
+        Lds #$3BFF
+        Cli
+
+;Loop de espera
+;------------------------------------------------------------------------------
+
+ESPERA: Brset Banderas,$04, ESPERA ; Revisa si el bit de Array ok esta en alto y salta si se cumple
+        jsr TAREA_TECLADO
+        bra ESPERA
+
 
 ;------------------------------------------------------------------------------
 ; Subrutina TAREA_TECLADO: En esta subrutina se da la lectura del teclado. Aqui
 ;     se lee el teclado en el puerto A, se suprimen los rebotes, y se maneja la
 ;     situacion de tecla retenida.
 ;------------------------------------------------------------------------------
-TAREA_TECLADO:  TST Cont_Reb
-                BNE fin_TAREA ; Se ve si el contador ha llegado a 0, para asegurar la supresion de rebotes
-                JSR MUX_TECLADO ; Si el contador llega a 0, se corrobora la presion de una tecla y se salta a MUX_TECLADO
-                LDAA Tecla ; Luego de MUX_TECLADO ya la tecla leida esta en la variable Tecla
-                CMPA #$FF ; Se ve si se presiono una tecla valida
-                BEQ checkTCL_LISTA ; Puede haber una tecla lista para guardar en el arreglo. Esto es para evitar el caso de tecla retenida
-                BRCLR Banderas,$02,setReb ; Si ARRAY_OK es 0, hay que preparar el contador para rebotes
-                CMPA Tecla_IN ; Si no, ya esta listo y se verifica que la tecla recibida (despues de la supresion de rebotes) es valida
-                BEQ setTCL_LISTA ; Si Tecla_IN y Tecla son iguales, se registra la tecla presionada
-                MOVB #$FF,Tecla ; Caso contrario se borra la tecla y TCL_LISTA y TCL_LEIDA se ponen en 0
-                MOVB #$FF,Tecla_IN
-                BCLR Banderas,$03
-fin_TAREA:      RTS
+TAREA_TECLADO:
+        Ldaa Cont_Reb
+        Cmpa #0
+        Bne RETORNAR
+        Jsr MUX_TECLADO
+        Ldaa Tecla
+        Cmpa #$FF
+        Bne PRESIONADA
+        Brclr Banderas,$01,RETORNAR ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
+        Bclr Banderas,#$03 ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
+        Jsr FORMAR_ARRAY
+        Bra RETORNAR
 
-checkTCL_LISTA: BRCLR Banderas,$01,fin_TAREA ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
-                BCLR Banderas,$03 ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
-                JSR FORMAR_ARRAY
-                BRA fin_TAREA
+PRESIONADA:
+        Brclr Banderas,$02,NotProc
+        Ldaa Tecla_IN
+        Cmpa Tecla
+        Bne Delete
+        Bset Banderas,$01 ; La tecla esta lista para registro
+        bra RETORNAR
 
-setReb:         MOVB Tecla,Tecla_IN ; Almacenamiento temporal de la tecla detectada en Tecla_IN para revision de rebotes
-                BSET Banderas,$02 ; TCL_LEIDA se levanta setea
-                MOVB #10,Cont_Reb ; Se inicia el contador para rebotes
-                BRA fin_TAREA
-setTCL_LISTA:   BSET Banderas,$01 ; La tecla esta lista para registro
-                BRA fin_TAREA
+
+
+NotProc:
+        Movb Tecla, Tecla_IN
+        Bset Banderas, #2
+        Movb #10,Cont_Reb
+        Bra RETORNAR
+
+DELETE: Movb #$FF,Tecla
+        Movb #$FF,Tecla_IN
+        Bclr Banderas, #3
+
+RETORNAR:
+        RTS
                 
 ;------------------------------------------------------------------------------
 ; Subrutina MUX_TECLADO: esta subrutina es la que se encarga de leer el teclado
@@ -153,47 +170,60 @@ col0:           LDX #Teclas
 ;     presionada que se quiere almacenar en array. Este arreglo representa un
 ;     numero en formato BCD. Se cuida que el arreglo no supere el tamano maximo.
 ;------------------------------------------------------------------------------
-FORMAR_ARRAY:   LDX #Num_Array ; Se guarda la posicion de Num_Array para empezar a guardar datos
-                LDAA Tecla_IN ; Se guarda la tecla registrada
-                LDAB Cont_TCL ; Se inicia el iterador para iterar sobre Num_Array
-                CMPB MAX_TCL ; Se ve si Num_array esta lleno
-                BEQ max_teclas ; Si esta lleno, se cubren los casos de Num_Array lleno
-                CMPB #$00 ; Se ve si Num_Array esta vacio
-                BEQ cero_teclas ; Si esta vacio, se ven los casos para la primera tecla
-                CMPA #$0B ; Si no esta ni vacio ni lleno, se procede con la operacion normal. Si la tecla es $0B, se borra un elemento
-                BEQ borrar_tecla
-                CMPA #$0E ; Si la tecla es $0E, se registran los datos en Num_Array, se reinicia el contador y se levanta la bandera ARRAY_OK
-                BEQ enter_tecla
-                MOVB Tecla_IN,B,X ; Si era una tecla numerica, se ingresa
-                INC Cont_TCL ; El iterador para a la siguiente posicion de Num_Array
-fin_FORMAR:     MOVB #$FF,Tecla_IN ; Si no era ninguno de los casos contemplados, la tecla es invalida y se borra Tecla_IN. No se modifica Num_Array
-                RTS
+FORMAR_ARRAY:   ldaa Tecla_IN           ; valor ingresado
+                ldab Cont_TCL           ; cantidad de numeros
+                ldx #Num_Array           ; Posici{o del array
 
-max_teclas:     CMPA #$0B ; Caso de encontrar un boton B cuando el arreglo esta lleno. Si no es B, se pasa al siguiente caso, mientras que si lo es se elimina el elemento
-                BNE enterMax
-                DECB ; Se debe decrementar porque el puntero estaba listo para escribir
-                MOVB #$FF,B,X ; Para borrar la tecla, se carga un $FF en la posicion correspondiente de Num_Array
-                DEC Cont_TCL ; Se decrementa la posicion del iterador sobre Num_ARRAY
-                BRA fin_FORMAR
-enterMax:       CMPA #$0E ; Caso de encontrar un boton E cuando el arreglo esta lleno. Si no es un E, no se hace nada
-                BNE fin_FORMAR
-                BSET Banderas,$04 ; Si era E, se setea la bandera ARRAY_OK y se libera Cont_TCL para recibir otro arreglo. El inicio de Num_Array queda en $1007
-                CLR Cont_TCL
-                BRA fin_FORMAR
-cero_teclas:    CMPA #$0B ; Si el arreglo esta vacio y se lee un B o un E, no se hace nada
-                BEQ fin_FORMAR
-                CMPA #$0E
-                BEQ fin_FORMAR
-                MOVB Tecla_IN,B,X ; Si es una tecla numerica, se registra en la primera posicion de Num_Array
-                INC Cont_TCL
-                BRA fin_FORMAR
-borrar_tecla:   DECB ; Se debe decrementar 1 porque el puntero estaba listo para escribir
-                MOVB #$FF,B,X ; Se borra una tecla si se puede y se recibio un B
-                DEC Cont_TCL
-                BRA fin_FORMAR
-enter_tecla:    BSET Banderas,$04 ; Se ingresa el arreglo aunque no este lleno
-                CLR Cont_TCL
-                BRA fin_FORMAR
+                cmpb MAX_TCL            ; comparamos si ya está lleno
+                beq ARRAY_LLENO
+                cmpb #0                 ;vemos si está vacío
+                beq PRIMER_VAL
+                cmpa #$0B               ;tecla borrar
+                beq BORRAR
+                cmpa #$0E               ;tecla enter
+                beq ENTER
+                staa b,x                ;guarda en Num_array + cont_TCL
+                inc Cont_TCL
+		bra end_formar
+
+ARRAY_LLENO:    cmpb #$0B
+                bne ARRAY_LLENO_1
+                decb
+                movb #$FF,b,x            ; Para borrar reemplazamos valor actual con ff
+
+                dec Cont_TCL
+
+                bra end_formar
+
+ARRAY_LLENO_1:  cmpb #$0E                ; es enter?
+                bne end_formar
+                bset Banderas,$04        ; bandera de array ok
+                clr Cont_TCL             ; vacía contador tcl
+
+                bra end_formar
+
+
+PRIMER_VAL:     cmpa #$0B
+                beq end_formar         ; terminar
+
+PRIMER_VAL_1:   cmpa #$0E
+                beq end_formar
+                movb Tecla_IN,b,x
+                inc Cont_TCL
+                bra end_formar
+
+ENTER:          bset Banderas,#$04    ; bandera de array_ok
+                bclr Cont_TCL,#$FF    ; pone contador en 0
+                bra end_formar
+
+
+BORRAR:         dec Cont_TCL
+                decb
+                movb #$FF,b,x
+
+
+end_formar:     movb #$FF,Tecla_IN
+                rts
                 
 ;------------------------------------------------------------------------------
 ; Subrutina de servicio a interrupcion RTI: sencillamente descuenta un contador
