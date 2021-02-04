@@ -2,7 +2,7 @@
 ;                             Programa Conversiones
 ;##############################################################################
 ;       Fecha: 05 de Febrero 2021
-;       Autores: Roberto S·nchez C·rdenas y Luis Guillermo RamÌrez RodrÌguez
+;       Autores: Roberto S√°nchez C√°rdenas y Luis Guillermo Ram√≠rez Rodr√≠guez
 ;
 ;
 ;
@@ -17,7 +17,7 @@
 ;
 ;
 ;------------------------------------------------------------------------------
-;                  DECLARACI”N DE ESTRUCTURAS DE DATOS
+;                  DECLARACI√ìN DE ESTRUCTURAS DE DATOS
 ;------------------------------------------------------------------------------
 #include registers.inc
 
@@ -141,9 +141,9 @@ MUX_TECLADO:    ldd #$F000
 
 INDENTIF_KEY:   ldx  Patron
                 stx PORTA ;Carga patron a puerto A
-                brclr PORTA,$08,suma2 ; est· en columa 3
-                brclr PORTA,$04,suma1 ; est· en columa 2
-                brclr PORTA,$02,nosuma ; est· en columa 1
+                brclr PORTA,$08,suma2 ; est√° en columa 3
+                brclr PORTA,$04,suma1 ; est√° en columa 2
+                brclr PORTA,$02,nosuma ; est√° en columa 1
                 lsl Patron
                 addb #3
                 cmpa Patron
@@ -166,22 +166,26 @@ retorno:        rts
 ;*******************************************************************************
                 org $2000
 
+
 FORMAR_ARRAY:   ldaa Tecla_IN           ; valor ingresado
                 ldab Cont_TCL           ; cantidad de numeros
-                ldx Num_Array           ; Posici{o del array
+                ldx #Num_Array           ; Posici{o del array
 
-                cmpb MAX_TCL            ; comparamos si ya est· lleno
+                cmpb MAX_TCL            ; comparamos si ya est√° lleno
                 beq ARRAY_LLENO
-                cmpb #0                 ;vemos si est· vacÌo
+                cmpb #0                 ;vemos si est√° vac√≠o
                 beq PRIMER_VAL
                 cmpa #$0B               ;tecla borrar
                 beq BORRAR
                 cmpa #$0E               ;tecla enter
                 beq ENTER
                 staa b,x                ;guarda en Num_array + cont_TCL
+                inc Cont_TCL
+		bra end_formar
 
 ARRAY_LLENO:    cmpb #$0B
                 bne ARRAY_LLENO_1
+                decb
                 movb #$FF,b,x            ; Para borrar reemplazamos valor actual con ff
 
                 dec Cont_TCL
@@ -191,7 +195,7 @@ ARRAY_LLENO:    cmpb #$0B
 ARRAY_LLENO_1:  cmpb #$0E                ; es enter?
                 bne end_formar
                 bset Banderas,$04        ; bandera de array ok
-                clr Cont_TCL             ; vacÌa contador tcl
+                clr Cont_TCL             ; vac√≠a contador tcl
 
                 bra end_formar
 
@@ -210,15 +214,13 @@ ENTER:          bset Banderas,#$04    ; bandera de array_ok
                 bra end_formar
 
 
-BORRAR:        	dec Cont_TCL
+BORRAR:         dec Cont_TCL
                 decb
                 movb #$FF,b,x
 
+
 end_formar:     movb #$FF,Tecla_IN
                 rts
-
-
-
 
 
 
