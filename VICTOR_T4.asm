@@ -145,25 +145,27 @@ RETORNAR:
 ;     que se encuentra el valor de la tecla presionada. El valor de la tecla se
 ;     devuelve en la variable Tecla. Si no se presiona nada entonces Tecla = $FF.
 ;------------------------------------------------------------------------------
-MUX_TECLADO:    MOVB #$EF,Patron ; Se inicializa el patron de busqueda
-                LDAA #$F0 ; Para comparacion para final de iteraciones
-                CLRB ; Para acceso indexado por acumulador por
-loop_patron:    MOVB Patron,PORTA ; Se carga el patron en el puerto A
-                BRCLR PORTA,$04,col2 ; Se busca el patron en la ultima columna  verifica la ultima columna
-                BRCLR PORTA,$02,col1 ; Se busca el patron en la columna media
-                BRCLR PORTA,$01,col0 ; Se busca el patron en la primera columna
-                LSL Patron ; Si no hubo coincidencias con el patron, se desplaza a la izquierda y se suman 3 como offset de busqueda de la columna (para buscar en TeclasTECLAS) el  no se
-                ADDB #3
-                CMPA Patron ; Se ve si ya se buscaron todos los posibles valores
-                BNE loop_patron ; Si no se han recorrido todas las filas, se itera sobre la siguientehecho la busqueda en todo Teclas, se itera otra vez
-                MOVB #$FF,Tecla ; Caso contrario la tecla registrada no era valida y se borra
-fin_MUX:        RTS
+MUX_TECLADO:    movb #$EF,Patron ; Se carga el patron indicado
+                ldab #$00         ;  se pone b en 0
 
-col2:           INCB ; Incremento del indice de busqueda segun la columna y registro de la tecla hallada en Teclas a Tecla
-col1:           INCB
-col0:           LDX #Teclas
-                MOVB B,X,Tecla
-                BRA fin_MUX
+                
+BUSCAR_TECLA:   movb Patron,PORTA ; Se carga el patron en el puerto A
+                brclr PORTA,$04,col2 ; Se
+                brclr PORTA,$02,col1
+                brclr PORTA,$01,col0
+                lsl Patron ; Si no hubo coincidencias con el patron, se desplaza a la izquierda y se suman 3 como offset de busqueda de la columna (para buscar en TeclasTECLAS) el  no se
+                addb #3
+                ldy Patron
+                cpy #$F0
+                bne BUSCAR_TECLA ; Si no se han recorrido todas las filas, se itera sobre la siguientehecho la busqueda en todo Teclas, se itera otra vez
+                movb #$FF,Tecla ; Caso contrario la tecla registrada no era valida y se borra
+                rts
+
+col2:           incb ; Incremento del indice de busqueda segun la columna y registro de la tecla hallada en Teclas a Tecla
+col1:           incb
+col0:           ldx #Teclas
+                movb B,X,Tecla
+                rts
 
 ;------------------------------------------------------------------------------
 ; Subrutina FORMAR_ARRAY: recibe en la variable Tecla_IN el valor de la tecla
@@ -184,7 +186,7 @@ FORMAR_ARRAY:   ldaa Tecla_IN           ; valor ingresado
                 beq ENTER
                 staa b,x                ;guarda en Num_array + cont_TCL
                 inc Cont_TCL
-		bra end_formar
+                bra end_formar
 
 ARRAY_LLENO:    cmpb #$0B
                 bne ARRAY_LLENO_1
@@ -207,8 +209,8 @@ PRIMER_VAL:     cmpa #$0B
                 beq end_formar         ; terminar
 
 PRIMER_VAL_1:   cmpa #$0E
-                beq end_formar
-                movb Tecla_IN,b,x
+                beq end_formar         ;es enter pero está vacío, ignora
+                movb Tecla_IN,b,x      ;no es ni enter ni borrar, guarda en x+b
                 inc Cont_TCL
                 bra end_formar
 
@@ -242,13 +244,14 @@ fin_RTI:        RTI
 ; Subrutina de servicio a interrupcion key wakeup del puerto PH0: esta subrutina
 ;     se encarga de limpiar el arrglo Num_Array y la bandera ARRAY_OK.
 ;------------------------------------------------------------------------------
-PH0_ISR:        BSET PIFH,$01 ; Se reinicia la bandera de interrupcion
-                LDX #Num_Array ; Se limpia el contenido del arreglo
-                CLRA
-                BCLR Banderas,$04
-loop_PH0:       MOVB #$FF,A,X
-                INCA
-                CMPA MAX_TCL
-                BNE loop_PH0
+PH0_ISR:        BSET PIFH,$01 ; Bandera de interrupción se pone en 1
+                LDX #Num_Array ; Dirección del contenido
+                ldaa #0
+                BCLR Banderas,$04   ;Se borra bandera array ok
+                
+borrar_PH0:       MOVB #$FF,A,X
+                inca
+                cmpa MAX_TCL
+                bne borrar_PH0
                 CLR CONT_TCL
                 RTI
