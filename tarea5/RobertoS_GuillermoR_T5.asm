@@ -47,15 +47,15 @@ DISP1:          ds 1
 DISP2:          ds 1
 DISP3:          ds 1
 DISP4:          ds 1
-CONT_7SEG:      dW 1
+CONT_7SEG:      ds 2
 Cont_Delay:     ds 1
 ; constantes
 D2mS:           db 0
 D260uS:         db 0
 D40uS:          db 0
-Clear_LCD:      db 0
-ADD_L1:         db 0
-ADD_L2:         db 0
+Clear_LCD:      db $01
+ADD_L1:         db $80
+ADD_L2:         db $C0
 
 
                 org $1030
@@ -71,6 +71,17 @@ iniDsp:         db 0
 
 ; MENSAJES
                 org $1060
+                
+                
+;LCD:
+FUNCTION_SET:   equ $28
+ENTRY_MODE_SET: equ $06
+DISPLAY_ON:     equ $0C
+CLEAR_DISPLAY:  equ $01
+RETURN_HOME:    equ $02
+DDRAM_ADDR1:    equ $80
+DDRAM_ADDR2:    equ $C0
+EOM:            equ $00
 
 CONFIG_MSG1:    fcc "MODO CONFIG"
                 db $00
@@ -157,12 +168,31 @@ MAIN_LOOP:              tst CantPQ
 
 
 ESTADO_ZERO:            bset Banderas,$08
-CONFIG_LCD:             brclr Banderas,$10,CALL_CONFIG
+
+CONFIG_LCD:             bset CRGINT,$80 ;NO ES NECESARIA, CRGINT YA HABILITADAS
+                        brclr Banderas,$10,CALL_CONFIG
+                        bclr Banderas,$10 ; se pone cambio de modo en 0
+                        
+                        bclr PIEH,$03     ;se deshabilitan puertos H 0 y 1
                         bclr Banderas,$10
+                        
+                        clr CUENTA
+                        clr AcmPQ
+                        
+                        ldx #CONFIG_MSG1
+                        ldy #CONFIG_MSG2
+                        
+                        movb #$00,PORTE
+                        movb #$02,LEDS ; enciende led pb1
+
+                        ldx #CONFIG_MSG1
+                        ldy #CONFIG_MSG2
+                        
+                        movb CantPQ,BIN1
                 
                         ; CONFIGURACION PREVIA AL LCD, en primera iter entra acá
                 
-                        ; jsr CARGAR_LCD
+                        jsr CARGAR_LCD
                 
 
 
@@ -200,42 +230,78 @@ VALIDO:                        bclr Banderas, $04
                 
 
                 
-                
+ending: bra *
 ;-------------------------------------------------------------------------------
 
-BCD_BIN:        ldab CantPQ
-                clra
-                lsrd
-                lsrd
-                lsrd
-                lsrd
+BCD_BIN:        ldx #Num_Array
+                ldab 1,x
+                cmpb #$FF
+                beq UNIDAD
+                stab CantPQ
+                bra DECENA
+                
+UNIDAD:         movb Num_Array,CantPQ
+                rts
 
-                stab BCD_L
-                ldab #$0F
-                andb BCD_L
-
+DECENA:                clra
+                ldab Num_Array
                 ldy #10
                 emul
-                std TEMP
 
-                ldab CantPQ
-                stab BCD_L
+                addb CantPQ
+                stab CantPQ
 
-                ldab #$0F
-                andb BCD_L
-                addd TEMP
-                
-                movb TEMP, CantPQ
                 rts
+;-------------------------------------------------------------------------------
+Cargar_LCD:     ldaa ADD_L1
+                jsr Send_Command
+                movb D40uS,Cont_Delay
+                jsr Delay
                 
+LINEA1:         ldaa 1,x+ ;Se va cargando mensaje
+                cmpa EOM
+                beq CARGAR_LINEA2
+                
+                jsr Send_Data
+                
+                movb D40uS,Cont_Delay
+                jsr Delay
+                bra LINEA1
+                
+                
+CARGAR_LINEA2:  ldaa ADD_L2
+                jsr Send_Command
+                movb D40uS,Cont_Delay
+                jsr Delay
 
-ending:        bra *
-;----------------------------------------------------------------------------
-Cargar_LCD: bra *
+
+LINEA2:         ldaa 1,y+
+                cmpa EOM
+                beq TERMINA_LCD
+                jsr Send_Data
+                movb D40uS,Cont_Delay
+                jsr Delay
+                bra LINEA2
+
+TERMINA_LCD:   rts
+
+;-------------------------------------------------------------------------------
+Send_Command:
+
+
+Send_Data:
 
 
 
-;------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------
+Delay:  tst Cont_Delay
+        dec Cont_Delay ; TEMPORAL, NO VA ACÁ
+        bne Delay
+        rts
+
+
+
+;-------------------------------------------------------------------------------
 TAREA_TECLADO:
         Ldaa Cont_Reb
         Cmpa #0
