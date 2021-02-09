@@ -116,9 +116,9 @@ RUN_MSG2:       fcc "AcmPQ   CUENTA"
                 clr CONT_DIG
                 clr BCD1
                 clr BCD2
-                clr CantPG
+                clr CantPQ
                 clr CUENTA
-                clr AcmPG
+                clr AcmPQ
                 
         ; Se llena num array con FFs
                 Ldaa MAX_TCL
@@ -126,7 +126,7 @@ RUN_MSG2:       fcc "AcmPQ   CUENTA"
 
 fill_array:
                 Movb #$FF,1,X+
-                       Dbne a, fill_array
+                Dbne a, fill_array
         
         
                 ;tecla y tecla_in se cargan en FF, valor vacío
@@ -136,32 +136,38 @@ fill_array:
                 movb SEGMENT,DISP4 ; PANTALLAS MOSTRANDO 0
 
 
+;-------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------
+                        bset Banderas,$10 ; Se entra en modo config X:X:X:CambMod:ModActual:ARRAY_OK: TCL_LEIDA:TCL_LISTA
 
-                bset Banderas,$10 ; Se entra en modo config X:X:X:CambMod:ModActual:ARRAY_OK: TCL_LEIDA:TCL_LISTA
-
-MAIN_LOOP:      tst CantPQ
-                beq ESTADO_ZERO
-
-
-
-
-
-
-
+MAIN_LOOP:              tst CantPQ
+                        beq ESTADO_ZERO
 
 
+                ; CHECK MODSEL
 
-ESTADO_ZERO:    bset Banderas,$08
-CONFIG_LCD:     brclr Banderas,$10,CALL_CONFIG
-                bclr Banderas,$10
+
+
+
+
+
+
+ESTADO_ZERO:            bset Banderas,$08
+CONFIG_LCD:             brclr Banderas,$10,CALL_CONFIG
+                        bclr Banderas,$10
                 
-                ; CONFIGURACION PREVIA AL LCD
+                        ; CONFIGURACION PREVIA AL LCD, en primera iter entra acá
                 
-                jsr CARGAR_LCD
+                        ; jsr CARGAR_LCD
                 
 
 
-CALL_CONFIG:    jsr MODO_CONFIG
+CALL_CONFIG:            jsr MODO_CONFIG
+                        bra MAIN_LOOP
 
 
 
@@ -169,27 +175,27 @@ CALL_CONFIG:    jsr MODO_CONFIG
 
 ;-------------------------------------------------------------------------------
 
-MODO_CONFIG:           movb CantPQ, BIN1
-                brset Banderas,$04,DATA_CHECK
-                jsr TAREA_TECLADO
-                rts
+MODO_CONFIG:                   movb CantPQ, BIN1
+                        brset Banderas,$04,DATA_CHECK
+                        jsr TAREA_TECLADO
+                        rts
 
 
-DATA_CHECK:            jsr BCD_BIN
-                       ldaa #25
-                       cmpa CantPQ
-                       bgt INVALIDO
-                       ldaa #85
-                       cmpa CantPQ
-                       bge VALIDO
-                       
-INVALIDO:       bclr Banderas,$04
-                bclr CantPQ,$FF
-                rts
+DATA_CHECK:                    jsr BCD_BIN
+                               ldaa #25
+                               cmpa CantPQ
+                               bgt INVALIDO
+                               ldaa #85
+                               cmpa CantPQ
+                               bge VALIDO
+
+INVALIDO:               bclr Banderas,$04
+                        bclr CantPQ,$FF
+                        rts
                 
-VALIDO:         bclr Banderas, $04
-                movb CantPQ,BIN1
-                rts
+VALIDO:                        bclr Banderas, $04
+                        movb CantPQ,BIN1
+                        rts
                 
                 
 
@@ -198,7 +204,7 @@ VALIDO:         bclr Banderas, $04
 ;-------------------------------------------------------------------------------
 
 BCD_BIN:        ldab CantPQ
-		clra
+                clra
                 lsrd
                 lsrd
                 lsrd
@@ -224,7 +230,8 @@ BCD_BIN:        ldab CantPQ
                 
 
 ending:        bra *
-
+;----------------------------------------------------------------------------
+Cargar_LCD: bra *
 
 
 
@@ -304,14 +311,14 @@ FORMAR_ARRAY:   ldaa Tecla_IN                   ; valor ingresado
                 inc Cont_TCL
                 bra end_formar
 
-ARRAY_LLENO:    cmpb #$0B
+ARRAY_LLENO:    cmpa #$0B
                 bne ARRAY_LLENO_1
                 decb
                 movb #$FF,b,x                    ; Para borrar reemplazamos valor actual con ff
                 dec Cont_TCL
                 bra end_formar
 
-ARRAY_LLENO_1:  cmpb #$0E                         ; es enter?
+ARRAY_LLENO_1:  cmpa #$0E                         ; es enter?
                 bne end_formar
                 bset Banderas,$04                ; bandera de array ok
                 clr Cont_TCL                     ; vacía contador tc

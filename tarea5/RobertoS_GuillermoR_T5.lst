@@ -718,9 +718,9 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
                         ; Vectores para interrupciones
 3e70                                    org $3E70
-3e70 21 f9                              dw RTI_ISR
+3e70 21 d1                              dw RTI_ISR
 3e4c                                    org $3E4C
-3e4c 22 08                              dw PH0_ISR
+3e4c 21 e0                              dw PH0_ISR
                         
                         ;------------------------------------------------------------------------------
                         ;                       PROGRAMA
@@ -751,11 +751,9 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 202f 79 10 0f                           clr CONT_DIG
 2032 79 10 17                           clr BCD1
 2035 79 10 18                           clr BCD2
-RobertoS_GuillermoR_T5.asm:119: Error - Symbol CantPG is undefined.
-2038 79 00 00                           clr CantPG
+2038 79 10 0b                           clr CantPQ
 203b 79 10 09                           clr CUENTA
-RobertoS_GuillermoR_T5.asm:121: Error - Symbol AcmPG is undefined.
-203e 79 00 00                           clr AcmPG
+203e 79 10 0a                           clr AcmPQ
                                         
                                 ; Se llena num array con FFs
 2041 b6 10 01                           Ldaa MAX_TCL
@@ -763,7 +761,7 @@ RobertoS_GuillermoR_T5.asm:121: Error - Symbol AcmPG is undefined.
                         
 2047                    fill_array:
 2047 18 08 30 ff                        Movb #$FF,1,X+
-204b 04 30 f9                                  Dbne a, fill_array
+204b 04 30 f9                           Dbne a, fill_array
                                 
                                 
                                         ;tecla y tecla_in se cargan en FF, valor vacío
@@ -773,34 +771,38 @@ RobertoS_GuillermoR_T5.asm:121: Error - Symbol AcmPG is undefined.
 205e 18 0c 10 40 10 1c                  movb SEGMENT,DISP4 ; PANTALLAS MOSTRANDO 0
                         
                         
+                        ;-------------------------------------------------------------------------------
+                        ;-------------------------------------------------------------------------------
+                        ;-------------------------------------------------------------------------------
+                        ;-------------------------------------------------------------------------------
+                        ;-------------------------------------------------------------------------------
+                        ;-------------------------------------------------------------------------------
+2064 1c 10 00 10                                bset Banderas,$10 ; Se entra en modo config X:X:X:CambMod:ModActual:ARRAY_OK: TCL_LEIDA:TCL_LISTA
                         
-2064 1c 10 00 10                        bset Banderas,$10 ; Se entra en modo config X:X:X:CambMod:ModActual:ARRAY_OK: TCL_LEIDA:TCL_LISTA
-                        
-2068 f7 10 0b           MAIN_LOOP:      tst CantPQ
-206b 27 00                              beq ESTADO_ZERO
-                        
-                        
-                        
-                        
-                        
-                        
-                        
+2068 f7 10 0b           MAIN_LOOP:              tst CantPQ
+206b 27 00                                      beq ESTADO_ZERO
                         
                         
+                                        ; CHECK MODSEL
                         
-206d 1c 10 00 08        ESTADO_ZERO:    bset Banderas,$08
-2071 1f 10 00 10 07     CONFIG_LCD:     brclr Banderas,$10,CALL_CONFIG
-2076 1d 10 00 10                        bclr Banderas,$10
+                        
+                        
+                        
+                        
+                        
+                        
+206d 1c 10 00 08        ESTADO_ZERO:            bset Banderas,$08
+2071 1f 10 00 10 04     CONFIG_LCD:             brclr Banderas,$10,CALL_CONFIG
+2076 1d 10 00 10                                bclr Banderas,$10
                                         
-                                        ; CONFIGURACION PREVIA AL LCD
+                                                ; CONFIGURACION PREVIA AL LCD, en primera iter entra acá
                                         
-RobertoS_GuillermoR_T5.asm:160: Error - Symbol CARGAR_LCD is undefined.
-207a 17 00                              jsr CARGAR_LCD
+                                                ; jsr CARGAR_LCD
                                         
                         
                         
-RobertoS_GuillermoR_T5.asm:164: Error - Phasing error.
-207c 16 20 80           CALL_CONFIG:    jsr MODO_CONFIG
+207a 16 20 7f           CALL_CONFIG:            jsr MODO_CONFIG
+207d 20 e9                                      bra MAIN_LOOP
                         
                         
                         
@@ -808,31 +810,27 @@ RobertoS_GuillermoR_T5.asm:164: Error - Phasing error.
                         
                         ;-------------------------------------------------------------------------------
                         
-RobertoS_GuillermoR_T5.asm:172: Error - Phasing error.
-207f 18 0c 10 0b 10 12  MODO_CONFIG:   	movb CantPQ, BIN1
-2085 1e 10 00 04 05                     brset Banderas,$04,DATA_CHECK
-208a 16 21 0b                           jsr TAREA_TECLADO
-208d 3d                                 rts
+207f 18 0c 10 0b 10 12  MODO_CONFIG:                   movb CantPQ, BIN1
+2085 1e 10 00 04 04                             brset Banderas,$04,DATA_CHECK
+208a 16 20 e3                                   jsr TAREA_TECLADO
+208d 3d                                         rts
                         
                         
-RobertoS_GuillermoR_T5.asm:178: Error - Phasing error.
-208e 16 20 b4           DATA_CHECK:    	jsr BCD_BIN
-2091 86 19                             	ldaa #25
-2093 b1 10 0b                          	cmpa CantPQ
-2096 2e 08                             	bgt INVALIDO
-2098 86 55                             	ldaa #85
-209a b1 10 0b                          	cmpa CantPQ
-209d 2c 0a                             	bge VALIDO
-                                       	
-RobertoS_GuillermoR_T5.asm:186: Error - Phasing error.
-209f 1d 10 00 04        INVALIDO:	bclr Banderas,$04
-20a3 1d 10 0b ff                        bclr CantPQ,$FF
-20a7 3d                                 rts
+208e 16 20 b3           DATA_CHECK:                    jsr BCD_BIN
+2091 86 19                                             ldaa #25
+2093 b1 10 0b                                          cmpa CantPQ
+2096 2e 07                                             bgt INVALIDO
+2098 86 55                                             ldaa #85
+209a b1 10 0b                                          cmpa CantPQ
+209d 2c 09                                             bge VALIDO
+                        
+209f 1d 10 00 04        INVALIDO:               bclr Banderas,$04
+20a3 1d 10 0b ff                                bclr CantPQ,$FF
+20a7 3d                                         rts
                                         
-RobertoS_GuillermoR_T5.asm:190: Error - Phasing error.
-20a8 1d 10 00 04        VALIDO:         bclr Banderas, $04
-20ac 18 0c 10 0b 10 12                  movb CantPQ,BIN1
-20b2 3d                                 rts
+20a8 1d 10 00 04        VALIDO:                        bclr Banderas, $04
+20ac 18 0c 10 0b 10 12                          movb CantPQ,BIN1
+20b2 3d                                         rts
                                         
                                         
                         
@@ -840,231 +838,169 @@ RobertoS_GuillermoR_T5.asm:190: Error - Phasing error.
                                         
                         ;-------------------------------------------------------------------------------
                         
-RobertoS_GuillermoR_T5.asm:200: Error - Phasing error.
-RobertoS_GuillermoR_T5.asm:200: Error - Symbol BCD is undefined.
-20b3 dc 00              BCD_BIN:        ldd BCD
-20b5 49                                 lsrd
-20b6 49                                 lsrd
+20b3 f6 10 0b           BCD_BIN:        ldab CantPQ
+20b6 87                                 clra
 20b7 49                                 lsrd
 20b8 49                                 lsrd
+20b9 49                                 lsrd
+20ba 49                                 lsrd
                         
-RobertoS_GuillermoR_T5.asm:206: Error - Symbol BCD_H is undefined.
-20b9 5c 00                              std BCD_H
-20bb 86 0f                              ldaa #$0F
-20bd c6 0f                              ldab #$0F
+20bb 7b 10 14                           stab BCD_L
+20be c6 0f                              ldab #$0F
+20c0 f4 10 14                           andb BCD_L
                         
-RobertoS_GuillermoR_T5.asm:210: Error - Symbol BCD_H is undefined.
-20bf 94 00                              anda BCD_H
-20c1 f4 10 14                           andb BCD_L
+20c3 cd 00 0a                           ldy #10
+20c6 13                                 emul
+20c7 7c 10 16                           std TEMP
                         
-20c4 36                                 psha
-20c5 cd 00 0a                           ldy #10
-20c8 87                                 clra
-20c9 13                                 emul
-20ca 7c 10 16                           std TEMP
+20ca f6 10 0b                           ldab CantPQ
+20cd 7b 10 14                           stab BCD_L
                         
-20cd 33                                 pulb
-20ce cd 03 e8                           ldy #1000
-20d1 13                                 emul            ; Tengo miles en D
-20d2 f3 10 16                           ADDD TEMP
-                        
-20d5 3b                                 pshd
-                        
-RobertoS_GuillermoR_T5.asm:226: Error - Symbol BCD is undefined.
-20d6 dc 00                              ldd  BCD
-RobertoS_GuillermoR_T5.asm:227: Error - Symbol BCD_H is undefined.
-20d8 5c 00                              std BCD_H
-                        
-20da 87                                 clra
-20db c6 0f                              ldab #$0F
-20dd f4 10 14                           andb BCD_L
-                        
-20e0 7c 10 16                           std TEMP
-                        
-20e3 c6 0f                              ldab #$0F
-RobertoS_GuillermoR_T5.asm:236: Error - Symbol BCD_H is undefined.
-20e5 d4 00                              andb BCD_H
-20e7 cd 00 64                           ldy #100
-20ea 13                                 emul
-RobertoS_GuillermoR_T5.asm:239: Error - Symbol HIGH is undefined.
-20eb 5c 00                              std HIGH
-                        
-20ed 3a                                 puld
-20ee f3 10 16                           addd TEMP
-RobertoS_GuillermoR_T5.asm:243: Error - Symbol HIGH is undefined.
-20f1 d3 00                              addd HIGH
-RobertoS_GuillermoR_T5.asm:244: Error - Symbol NUM_BIN is undefined.
-20f3 5c 00                              std NUM_BIN
+20d0 c6 0f                              ldab #$0F
+20d2 f4 10 14                           andb BCD_L
+20d5 f3 10 16                           addd TEMP
                                         
+20d8 18 0c 10 16 10 0b                  movb TEMP, CantPQ
+20de 3d                                 rts
                                         
                         
-RobertoS_GuillermoR_T5.asm:248: Error - Phasing error.
-20f5 20 fe              ending:        bra *
-                        
+20df 20 fe              ending:        bra *
+                        ;----------------------------------------------------------------------------
+20e1 20 fe              Cargar_LCD: bra *
                         
                         
                         
                         ;------------------------------------------------------------------------------
+20e3                    TAREA_TECLADO:
+20e3 b6 10 04                   Ldaa Cont_Reb
+20e6 81 00                      Cmpa #0
+20e8 26 4a                      Bne RETORNAR
+20ea 16 21 35                   Jsr MUX_TECLADO
+20ed b6 10 02                   Ldaa Tecla
+20f0 81 ff                      Cmpa #$FF
+20f2 26 0e                      Bne PRESIONADA
+20f4 1f 10 00 01 3b             Brclr Banderas,$01,RETORNAR                 ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
+20f9 1d 10 00 03                Bclr Banderas,#$03                         ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
+20fd 16 21 6b                   Jsr FORMAR_ARRAY
+2100 20 32                      Bra RETORNAR
                         
-RobertoS_GuillermoR_T5.asm:255: Error - Phasing error.
-20f7 1e 10 00 04 05     ESPERA: Brset Banderas,$04, ESPERA                 ; Revisa si el bit de Array ok esta en alto y salta si se cumple
-20fc 16 21 0b                   jsr TAREA_TECLADO
-20ff 20 00                      bra ESPERA                                 ; continua el loop
-                        
-                        
-                        ;------------------------------------------------------------------------------
-RobertoS_GuillermoR_T5.asm:261: Error - Phasing error.
-2101                    TAREA_TECLADO:
-2101 b6 10 04                   Ldaa Cont_Reb
-2104 81 00                      Cmpa #0
-2106 26 54                      Bne RETORNAR
-2108 16 21 5d                   Jsr MUX_TECLADO
-210b b6 10 02                   Ldaa Tecla
-210e 81 ff                      Cmpa #$FF
-2110 26 18                      Bne PRESIONADA
-2112 1f 10 00 01 45             Brclr Banderas,$01,RETORNAR                 ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
-2117 1d 10 00 03                Bclr Banderas,#$03                         ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
-211b 16 21 93                   Jsr FORMAR_ARRAY
-211e 20 3c                      Bra RETORNAR
-                        
-RobertoS_GuillermoR_T5.asm:274: Error - Phasing error.
-2120                    PRESIONADA:
-2120 1f 10 00 02 18             Brclr Banderas,$02,NotProc
-2125 b6 10 03                   Ldaa Tecla_IN
-2128 b1 10 02                   Cmpa Tecla
-212b 26 21                      Bne Delete
-212d 1c 10 00 01                Bset Banderas,$01                         ; La tecla esta lista para registro
-2131 20 29                      bra RETORNAR
+2102                    PRESIONADA:
+2102 1f 10 00 02 0e             Brclr Banderas,$02,NotProc
+2107 b6 10 03                   Ldaa Tecla_IN
+210a b1 10 02                   Cmpa Tecla
+210d 26 17                      Bne Delete
+210f 1c 10 00 01                Bset Banderas,$01                         ; La tecla esta lista para registro
+2113 20 1f                      bra RETORNAR
                         
                         
                         
-RobertoS_GuillermoR_T5.asm:284: Error - Phasing error.
-2133                    NotProc:
-2133 18 0c 10 02 10 03          Movb Tecla, Tecla_IN
-2139 1c 10 00 02                Bset Banderas, #2
-213d 18 0b 0a 10 04             Movb #10,Cont_Reb
-2142 20 18                      Bra RETORNAR
+2115                    NotProc:
+2115 18 0c 10 02 10 03          Movb Tecla, Tecla_IN
+211b 1c 10 00 02                Bset Banderas, #2
+211f 18 0b 0a 10 04             Movb #10,Cont_Reb
+2124 20 0e                      Bra RETORNAR
                         
-RobertoS_GuillermoR_T5.asm:290: Error - Phasing error.
-2144 18 0b ff 10 02     DELETE: Movb #$FF,Tecla
-2149 18 0b ff 10 03             Movb #$FF,Tecla_IN
-214e 1d 10 00 03                Bclr Banderas, #3
+2126 18 0b ff 10 02     DELETE: Movb #$FF,Tecla
+212b 18 0b ff 10 03             Movb #$FF,Tecla_IN
+2130 1d 10 00 03                Bclr Banderas, #3
                         
-RobertoS_GuillermoR_T5.asm:294: Error - Phasing error.
-2152                    RETORNAR:
-2152 3d                         RTS
+2134                    RETORNAR:
+2134 3d                         RTS
                         
                         
                         ;------------------------------------------------------------------------------
-RobertoS_GuillermoR_T5.asm:299: Error - Phasing error.
-2153 18 0b ef 10 06     MUX_TECLADO:    movb #$EF,Patron                ; Patron inicial
-2158 cc f0 00                           ldd #$F000                       ; final cuando se desplaza patron
+2135 18 0b ef 10 06     MUX_TECLADO:    movb #$EF,Patron                ; Patron inicial
+213a cc f0 00                           ldd #$F000                       ; final cuando se desplaza patron
                         
-RobertoS_GuillermoR_T5.asm:302: Error - Phasing error.
-215b 18 0c 10 06 00 00  BUSCAR_COLUMNA: movb Patron,PORTA
-2161 4f 00 08 22                        brclr PORTA,$08,columna2            ; Verificamos se la tecla está en la columna2
-2165 4f 00 04 1f                        brclr PORTA,$04,columna1
-2169 4f 00 02 1c                        brclr PORTA,$02,columna0
-216d 78 10 06                           lsl Patron                          ; Se desplaza el patron para verificar siguiente fila
-2170 cb 03                              addb #3                             ; Se suman 3 para aumentar esa cantidad en el array de posibilidades
-2172 b1 10 06                           cmpa Patron
-2175 26 ee                              bne BUSCAR_COLUMNA
-2177 18 0b ff 10 02                     movb #$FF,Tecla
-RobertoS_GuillermoR_T5.asm:311: Error - Phasing error.
-217c 3d                 TERMINAR:       rts
+213d 18 0c 10 06 00 00  BUSCAR_COLUMNA: movb Patron,PORTA
+2143 4f 00 08 18                        brclr PORTA,$08,columna2            ; Verificamos se la tecla está en la columna2
+2147 4f 00 04 15                        brclr PORTA,$04,columna1
+214b 4f 00 02 12                        brclr PORTA,$02,columna0
+214f 78 10 06                           lsl Patron                          ; Se desplaza el patron para verificar siguiente fila
+2152 cb 03                              addb #3                             ; Se suman 3 para aumentar esa cantidad en el array de posibilidades
+2154 b1 10 06                           cmpa Patron
+2157 26 e4                              bne BUSCAR_COLUMNA
+2159 18 0b ff 10 02                     movb #$FF,Tecla
+215e 3d                 TERMINAR:       rts
                         
-RobertoS_GuillermoR_T5.asm:313: Error - Phasing error.
-217d 52                 columna2:       incb                                ; Incrementa en 2 si salta acá
-RobertoS_GuillermoR_T5.asm:314: Error - Phasing error.
-217e 52                 columna1:       incb                                ; Incrementa en 1 si salta acá
-RobertoS_GuillermoR_T5.asm:315: Error - Phasing error.
-217f ce 10 30           columna0:       ldx #Teclas
-2182 18 0d e5 10 02                     movb B,X,Tecla                      ; Se mueve la tecla encontrada
-2187 20 fd                              bra TERMINAR
+215f 52                 columna2:       incb                                ; Incrementa en 2 si salta acá
+2160 52                 columna1:       incb                                ; Incrementa en 1 si salta acá
+2161 ce 10 30           columna0:       ldx #Teclas
+2164 18 0d e5 10 02                     movb B,X,Tecla                      ; Se mueve la tecla encontrada
+2169 20 f3                              bra TERMINAR
                         
                         ;------------------------------------------------------------------------------
-RobertoS_GuillermoR_T5.asm:320: Error - Phasing error.
-2189 b6 10 03           FORMAR_ARRAY:   ldaa Tecla_IN                   ; valor ingresado
-218c f6 10 05                           ldab Cont_TCL                   ; cantidad de numeros
-218f ce 10 07                           ldx #Num_Array                   ; Posición del array
+216b b6 10 03           FORMAR_ARRAY:   ldaa Tecla_IN                   ; valor ingresado
+216e f6 10 05                           ldab Cont_TCL                   ; cantidad de numeros
+2171 ce 10 07                           ldx #Num_Array                   ; Posición del array
                         
-2192 f1 10 01                           cmpb MAX_TCL                    ; comparamos si ya está lleno
-2195 27 1d                              beq ARRAY_LLENO
-2197 c1 00                              cmpb #0                         ; vemos si está vacío
-2199 27 34                              beq PRIMER_VAL
-219b 81 0b                              cmpa #$0B                       ; tecla borrar
-219d 27 4c                              beq BORRAR
-219f 81 0e                              cmpa #$0E                       ; tecla enter
-21a1 27 3e                              beq ENTER
-21a3 6a e5                              staa b,x                        ; guarda en Num_array + cont_TCL
-21a5 72 10 05                           inc Cont_TCL
-21a8 20 49                              bra end_formar
+2174 f1 10 01                           cmpb MAX_TCL                    ; comparamos si ya está lleno
+2177 27 13                              beq ARRAY_LLENO
+2179 c1 00                              cmpb #0                         ; vemos si está vacío
+217b 27 2a                              beq PRIMER_VAL
+217d 81 0b                              cmpa #$0B                       ; tecla borrar
+217f 27 42                              beq BORRAR
+2181 81 0e                              cmpa #$0E                       ; tecla enter
+2183 27 34                              beq ENTER
+2185 6a e5                              staa b,x                        ; guarda en Num_array + cont_TCL
+2187 72 10 05                           inc Cont_TCL
+218a 20 3f                              bra end_formar
                         
-RobertoS_GuillermoR_T5.asm:336: Error - Phasing error.
-21aa c1 0b              ARRAY_LLENO:    cmpb #$0B
-21ac 26 14                              bne ARRAY_LLENO_1
-21ae 53                                 decb
-21af 18 08 e5 ff                        movb #$FF,b,x                    ; Para borrar reemplazamos valor actual con ff
-21b3 73 10 05                           dec Cont_TCL
-21b6 20 3b                              bra end_formar
+218c 81 0b              ARRAY_LLENO:    cmpa #$0B
+218e 26 0a                              bne ARRAY_LLENO_1
+2190 53                                 decb
+2191 18 08 e5 ff                        movb #$FF,b,x                    ; Para borrar reemplazamos valor actual con ff
+2195 73 10 05                           dec Cont_TCL
+2198 20 31                              bra end_formar
                         
-RobertoS_GuillermoR_T5.asm:343: Error - Phasing error.
-21b8 c1 0e              ARRAY_LLENO_1:  cmpb #$0E                         ; es enter?
-21ba 26 37                              bne end_formar
-21bc 1c 10 00 04                        bset Banderas,$04                ; bandera de array ok
-21c0 79 10 05                           clr Cont_TCL                     ; vacía contador tc
-21c3 20 2e                              bra end_formar
+219a 81 0e              ARRAY_LLENO_1:  cmpa #$0E                         ; es enter?
+219c 26 2d                              bne end_formar
+219e 1c 10 00 04                        bset Banderas,$04                ; bandera de array ok
+21a2 79 10 05                           clr Cont_TCL                     ; vacía contador tc
+21a5 20 24                              bra end_formar
                         
-RobertoS_GuillermoR_T5.asm:349: Error - Phasing error.
-21c5 81 0b              PRIMER_VAL:     cmpa #$0B
-21c7 27 2a                              beq end_formar                         ; terminar
+21a7 81 0b              PRIMER_VAL:     cmpa #$0B
+21a9 27 20                              beq end_formar                         ; terminar
                         
-RobertoS_GuillermoR_T5.asm:352: Error - Phasing error.
-21c9 81 0e              PRIMER_VAL_1:   cmpa #$0E
-21cb 27 26                              beq end_formar
-21cd 18 09 e5 10 03                     movb Tecla_IN,b,x
-21d2 72 10 05                           inc Cont_TCL
-21d5 20 1c                              bra end_formar
+21ab 81 0e              PRIMER_VAL_1:   cmpa #$0E
+21ad 27 1c                              beq end_formar
+21af 18 09 e5 10 03                     movb Tecla_IN,b,x
+21b4 72 10 05                           inc Cont_TCL
+21b7 20 12                              bra end_formar
                         
-RobertoS_GuillermoR_T5.asm:358: Error - Phasing error.
-21d7 1c 10 00 04        ENTER:          bset Banderas,#$04                    ; bandera de array_ok
-21db 1d 10 05 ff                        bclr Cont_TCL,#$FF                    ; pone contador en 0
-21df 20 12                              bra end_formar
+21b9 1c 10 00 04        ENTER:          bset Banderas,#$04                    ; bandera de array_ok
+21bd 1d 10 05 ff                        bclr Cont_TCL,#$FF                    ; pone contador en 0
+21c1 20 08                              bra end_formar
                         
                         
-RobertoS_GuillermoR_T5.asm:363: Error - Phasing error.
-21e1 73 10 05           BORRAR:         dec Cont_TCL
-21e4 53                                 decb
-21e5 18 08 e5 ff                        movb #$FF,b,x
+21c3 73 10 05           BORRAR:         dec Cont_TCL
+21c6 53                                 decb
+21c7 18 08 e5 ff                        movb #$FF,b,x
                         
                         
-RobertoS_GuillermoR_T5.asm:368: Error - Phasing error.
-21e9 18 0b ff 10 03     end_formar:     movb #$FF,Tecla_IN
-21ee 3d                                 rts
+21cb 18 0b ff 10 03     end_formar:     movb #$FF,Tecla_IN
+21d0 3d                                 rts
                         
                         ;------------------------------------------------------------------------------
-RobertoS_GuillermoR_T5.asm:372: Error - Phasing error.
-21ef 4c 37 80           RTI_ISR:        bset CRGFLG,$80                 ; Se reinicia la bandera de interrupcion
-21f2 fe 10 04                           ldx Cont_Reb
-21f5 8e 00 00                           cpx #0
-21f8 27 0d                              beq fin_RTI                         ; Si el contador esta en 0 no se debe decrementar
-21fa 73 10 04                           dec Cont_Reb
-RobertoS_GuillermoR_T5.asm:377: Error - Phasing error.
-21fd 0b                 fin_RTI:        rti
+21d1 4c 37 80           RTI_ISR:        bset CRGFLG,$80                 ; Se reinicia la bandera de interrupcion
+21d4 fe 10 04                           ldx Cont_Reb
+21d7 8e 00 00                           cpx #0
+21da 27 03                              beq fin_RTI                         ; Si el contador esta en 0 no se debe decrementar
+21dc 73 10 04                           dec Cont_Reb
+21df 0b                 fin_RTI:        rti
                         
                         ;------------------------------------------------------------------------------
-RobertoS_GuillermoR_T5.asm:380: Error - Phasing error.
-21fe 1c 02 67 01        PH0_ISR:        Bset PIFH,$01                         ; Se reinicia la bandera de interrupcion
-2202 1d 10 00 04                        Bclr Banderas,$04
-2206 79 10 05                           Clr Cont_TCL
-2209 b6 10 01                           Ldaa MAX_TCL
-220c ce 10 07                           Ldx #Num_Array
+21e0 1c 02 67 01        PH0_ISR:        Bset PIFH,$01                         ; Se reinicia la bandera de interrupcion
+21e4 1d 10 00 04                        Bclr Banderas,$04
+21e8 79 10 05                           Clr Cont_TCL
+21eb b6 10 01                           Ldaa MAX_TCL
+21ee ce 10 07                           Ldx #Num_Array
                         
-RobertoS_GuillermoR_T5.asm:386: Error - Phasing error.
-220f 18 08 30 ff        vaciado_ph0:       Movb #$FF,1,X+                         ; Iteración para vaciar array
-2213 04 20 03                           Dbne a, vaciado_ph0
+21f1 18 08 30 ff        vaciado_ph0:       Movb #$FF,1,X+                         ; Iteración para vaciar array
+21f5 04 30 f9                           Dbne a, vaciado_ph0
                         
-2216 0b                                 Rti
+21f8 0b                                 Rti
 
-Executed: Sun Feb 07 21:33:39 2021
-Total errors: 43, Total warnings: 0
+Executed: Tue Feb 09 02:25:01 2021
+Total cycles: 570, Total bytes: 593
+Total errors: 0, Total warnings: 0
