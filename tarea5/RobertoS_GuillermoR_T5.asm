@@ -286,8 +286,33 @@ LINEA2:         ldaa 1,y+
 TERMINA_LCD:   rts
 
 ;-------------------------------------------------------------------------------
-Send_Command:
-
+Send_Command:   psha
+                anda #$F0
+                lsra
+                lsra
+                
+                staa PORTK
+                bclr PORTK,#$01
+                bset PORTK,#$02
+                
+                movb D260uS,Cont_Delay
+                jsr Delay
+                
+                bclr PORTK,#$02
+                pula
+                anda #$0F
+                lsra
+                lsra
+                
+                staa PORTK
+                bclr PORTK,#$01
+                bset PORTK,#$02
+                
+                movb D260uS,Cont_Delay
+                jsr Delay
+                
+                bclr PORTK,$#$01
+                
 
 Send_Data:
 
@@ -299,7 +324,24 @@ Delay:  tst Cont_Delay
         bne Delay
         rts
 
+;-------------------------------------------------------------------------------
+OC4_ISR:        tst Cont_Delay
+                beq CARGAR_OC4
+                dec Cont_Delay
 
+CARGAR_OC4:     ldx CONT_7SEG
+                dex
+                stx CONT_7SEG
+                cpx #$00
+                bne PANTALLAS
+                movw #5000,CONT_7SEG
+                bra finaloc4
+                jsr CONV_BIN_BCD
+                jsr BCD_7SEG
+
+
+
+finaloc4: bra *
 
 ;-------------------------------------------------------------------------------
 TAREA_TECLADO:
