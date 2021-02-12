@@ -98,7 +98,7 @@ EOM:            equ $00
                 org $3E70
                 dw RTI_ISR
                 org $3E4C
-                dw PH0_ISR
+                dw PTH_ISR
                 org $3e66
                 dw OC4_ISR
 
@@ -106,183 +106,169 @@ EOM:            equ $00
 ;                       PROGRAMA
 ;------------------------------------------------------------------------------
 
-                org $2000
+    ORG $2000
+;Configuracion RTI:
+    BSET CRGINT %10000000 ;se habilita RTI
+    MOVB #$31,RTICTL      ;periodo de 1.024 ms
 
-                        bset CRGINT,$80                 ; Habilita RTI
-                        bset PIEH,$0C                   ; se habilita keywakeup en puerto H
-                        bclr PPSH,$FF                   ; flanco decreciente en portH
+;Configuracion keywakeup en puerto H:
+    BSET PIEH %00001100   ;se habilita keywakeup en PH2 y PH3. Note que PH0 y PH1 se habilitan en modo RUN. PH7 es por polling.
+    BCLR PPSH $FF   ;las interrupciones deben ocurrir en el flanco decreciente.
 
-                        bset PUCR,$01                   ; Activa resistencias pull-up en PORTA
-                        movb #$17,RTICTL                ; periodo de aprox 1ms (1.024ms)
-                        movb #$F0,DDRA                  ; parte alta de A como salida y parte baja como entrada para matriz
-                        MOVB #$FF,DDRB ;puerto core B se configura como salida de proposito general. (LEDS y SEGMENTOS)
-                            MOVB #$0F,DDRP ;parte baja de puerto P se configura como salida de proposito general. (~Habilitador Segmentos)
-                            BSET DDRJ %00000010 ;se configura bit 1 del puerto J como salida de proposito general . (~Habilitador LEDS)
+;Configuracion PH7 como entrada de proposito general por polling: (Dipswitch)
+    BCLR DDRH %10000000
+
+;Configuracion del teclado en puerto A:
+    MOVB #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
+    BSET PUCR %00000001   ;resistencias de pull-up en puerto A. Son necesarias para que haya un 1 en el PAD cuando no se presiona ningun boton del teclado.
+
+;Configuracion del modulo de Timer como Output Compare en el Canal 4:
+    BSET TSCR1 %10000000 ;se habilita modulo de timer.
+    BSET TSCR2 %00000011 ;prescaler es 2^3 = 8
+    BSET TIOS %00010000 ;se configura el canal 4 como Output Compare.
+    BSET TIE %00010000 ;se habilita interrupcion del canal 4.
+    BCLR TCTL1 3 ;no es necesario que haya una salida en puerto T. Solo se requiere la interrupcion.
+
+;Configuracion de los displays de 7 segmentos y los LEDS.
+    MOVB #$FF,DDRB ;puerto core B se configura como salida de proposito general. (LEDS y SEGMENTOS)
+    MOVB #$0F,DDRP ;parte baja de puerto P se configura como salida de proposito general. (~Habilitador Segmentos)
+    BSET DDRJ %00000010 ;se configura bit 1 del puerto J como salida de proposito general . (~Habilitador LEDS)
 
 ;Configuracion de la salida SAL: relay en puerto PORTE4.
-                            MOVB #$04,DDRE ;se configura PORTE4 como salida
+    MOVB #$04,DDRE ;se configura PORTE4 como salida
 
 ;Configuracion de pantalla LCD
-                            MOVB #$FF,DDRK ;todos los pines del puerto K se configura como salida para controlar la LCD.
+    MOVB #$FF,DDRK ;todos los pines del puerto K se configura como salida para controlar la LCD.
 
-
-                
-                ;Modulo timer
-                    bset TSCR1 %10000000 ;se habilita modulo de timer.
-                    bset TSCR2 %00000100 ;prescaler es 2^3 = 8
-                    bset TIOS %00010000 ;se configura el canal 4 como Output Compare.
-                    bset TIE %00010000 ;se habilita interrupcion del canal 4.
-                    bclr TCTL1 3 ;no es necesario que haya una salida en puerto T. Solo se requiere la interrupcion.
-
-                Lds #$3BFF                      ; stack
-                Cli
-;Inicializacion de variables y banderas
+    CLI        ;habilita interrupciones mascarables.
 ;------------------------------------------------------------------------------
+;                       Inicializacion de variables
+;------------------------------------------------------------------------------
+    LDS #$3BFF  ;inicializa el stack
+;Teclado matricial:
+    MOVB #$FF,Tecla
+    MOVB #$FF,Tecla_IN
+    MOVB #$FF,Num_Array
+    CLR Cont_Reb
+    CLR Cont_TCL
+    CLR Patron
 
-        ; Se borran las variables de interï¿½s
-                        Clr Cont_Reb
-                        Clr Cont_TCL
-                        Clr Patron
-                        Clr Banderas
-                        clr CONT_7SEG
-                        clr CONT_TICKS
-                        clr CONT_DIG
-                        clr BCD1
-                        clr BCD2
-                        clr CantPQ
-                        clr CUENTA
-                        clr AcmPQ
-                
-        ; Se llena num array con FFs
-                        Ldaa MAX_TCL
-                        Ldx #Num_Array
+;Displays de 7 segmentos y LEDS:
+    CLR CONT_7SEG
+    CLR CONT_TICKS
+    CLR CONT_DIG
+    MOVB #50,BRILLO
+    MOVB #$02,LEDS
+    CLR BCD1
+    CLR BCD2
+    MOVB SEGMENT,DISP3 ;para tener DISP3 produciendo un 0
+    MOVB SEGMENT,DISP4 ;para tener DISP4 produciendo un 0. Importa mas que nada si se desea que en DISP3 y DISP4 presenten el ultimo valor valido introducido de CantPQ, con OC4
 
-fill_array:
-                        Movb #$FF,1,X+
-                        Dbne a, fill_array
-        
-                        movb #50,BRILLO
-                        movb #$02,LEDS   ; conf de leds como salida
-                ;tecla y tecla_in se cargan en FF, valor vacï¿½o
-                        Movb #$FF, Tecla
-                        Movb #$FF, Tecla_IN
-                        movb SEGMENT,DISP3
-                        movb SEGMENT,DISP4 ; PANTALLAS MOSTRANDO 0
+;Programa:
+    CLR CantPQ
+    CLR CUENTA
+    MOVB VMAX,TIMER_CUENTA
+    CLR AcmPQ
+    CLR Banderas
+    BSET Banderas,%00010000 ;CambMod=1 (MODO_CONFIG)
 
-;-------------------------------------------------------------------------------
-;INICIALIZACIï¿½N DE PANTALLA LCD y OC4
-;-------------------------------------------------------------------------------
-                        ldd TCNT
-                        addd #30 ; preesc 8
-                        std TC4
+    LDD TCNT ;se carga el valor actual de TCNT para reajustar el output compare
+    ADDD #60 ;60 cuentas equivalen 50kHz con prescalador=8
+    STD TC4 ;se actualiza el nuevo valor a alcanzar.
+    JSR INIT_LCD
+;------------------------------------------------------------------------------
+MAIN:
+    TST CantPQ
+    BEQ ESTADO_ZERO ;CantPQ=0? Ir a CONFIG
+    JSR DETERMINE_MODE
+    BRSET Banderas %00001000 CONFIG_LCD ;ModActual=1? Ir a INIT_CONFIG
 
-                        ldx #iniDsp
-                        inx
-                        clrb
-                        
-INITIALIZE_LCD:         ldaa b,x
-                        jsr Send_Command
-                        movb D40us,Cont_Delay
-                        jsr Delay
-                        incb
-                        cmpb iniDsp
-                        bne INITIALIZE_LCD
-                        ldaa CLEAR_LCD
-                        jsr Send_Command
-                        movb D2ms,Cont_Delay
-                        jsr Delay
-
-
-;-------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------
-;-------------------------------------------------------------------------------
-
-
-                        bset Banderas,$10 ; Se entra en modo config X:X:X:CambMod:ModActual:ARRAY_OK: TCL_LEIDA:TCL_LISTA
-
-MAIN_LOOP:              tst CantPQ
-                        beq ESTADO_ZERO
-
-                        ;Revisamos si modsel==modactual
-
-                        Brset Banderas %00001000 MODSEL1 ;se revisa si MODSEL esta en 1
-                        ;Caso de MODSEL==0
-                        Brclr PTIH %10000000 CONFIG_MODE ;MODSEL es 0, se verifica por modo RUN
-                        Bclr Banderas %00001000 ;MODSEL es 0, se pone ModActual en Banderas en
-                        Bset Banderas %00010000
-                        Bra CLEAN_SCREEN
-MODSEL1:
-                               Brset PTIH %10000000 CONFIG_MODE ;MODSEL es 1, se verifica por modo CONFIG
-                        Bset Banderas %00011000 ;Se actualiza modsel y se pone en uno el cambio
-
-                        ;MAE SINCERAMENTE ESTA PARTE NO SE SI ES NECESARIA
-                        ;NO VIENE EN EL DIAGRAMA PERO VICTOR LO METIO EN LO DE EL
-CLEAN_SCREEN            LDAA CLEAR_LCD ;cuando se cambia de modo, se limpia la pantalla
-                        JSR Send_Command ;envio de comando de limpieza de pantalla
-                        MOVB D2ms,Cont_Delay ;luego de enviar comando limpiar pantalla se debe esperar 2ms
-                        JSR Delay
-
-CONFIG_MODE:            Brset Banderas,$8 CONFIG_LCD
-
-
-CONFIG_RUN:                brclr Banderas,$10,CALL_RUN
-
-                        bset PIEH,$03     ;se habilitan puertos H 0 y 1
-                        bclr Banderas,$10  ;CAMBIO DE MOD EN 0
-
-                        ldx #RUN_MSG1
-                        ldy #RUN_MSG2
-
-                        movb #$01,LEDS ; enciende led pb0
-
-                        ldx #CONFIG_MSG1
-                        ldy #CONFIG_MSG2
-
-
-                        ; CONFIGURACION PREVIA AL LCD, en primera iter entra acï¿½
-
-                        jsr CARGAR_LCD
-
-CALL_RUN:               jsr MODO_RUN
-                        jmp MAIN_LOOP
-
-
-;-------------------------------------------------------------------------------
-
-
+RUN:
+    BRCLR Banderas %00010000 EX_RUN ;CambMod=0? Ir a EX_RUN
+INIT_RUN:
+    BSET PIEH %00000011 ;habilita keywakeup para PH0 y PH1
+    MOVB #$01,LEDS ;PB0=ON en modo config.
+    LDX #RUN_MSG1
+    LDY #RUN_MSG2
+    BCLR Banderas %00010000 ;CambMod=0
+    JSR Cargar_LCD
+EX_RUN:
+    JSR MODO_RUN
+    BRA MAIN
+    
 ESTADO_ZERO:            bset Banderas,$08
 
 CONFIG_LCD:             bset CRGINT,$80 ;NO ES NECESARIA, CRGINT YA HABILITADAS
                         brclr Banderas,$10,CALL_CONFIG  ; Entra SOLO en primera iteraciï¿½n
                         bclr Banderas,$10 ; se pone cambio de modo en 0
-                        
+
                         bclr PIEH,$03     ;se deshabilitan puertos H 0 y 1
                         bclr Banderas,$10
-                        
+
                         ldx #CONFIG_MSG1
                         ldy #CONFIG_MSG2
-                        
+
                         clr CUENTA
                         clr AcmPQ
 
                         movb #$00,PORTE
                         movb #$02,LEDS ; enciende led pb1
-                        
+
                         movb CantPQ,BIN1
-                
+
                         ; CONFIGURACION PREVIA AL LCD, en primera iter entra acï¿½
-                
+
                         jsr CARGAR_LCD
-                
+
 
 
 CALL_CONFIG:            jsr MODO_CONFIG
 
 
-volver_main:            jmp MAIN_LOOP
+volver_main:            jmp MAIN
+    
+    
+DETERMINE_MODE:
+                LDAA PTIH
+                LSLA ;PTH7 esta en C
+                BCS MODSEL1 ;se revisa si MODSEL esta en 1
+                BRCLR Banderas %00001000 FIN_DETERMINE ;MODSEL es 0, se verifica por modo RUN
+                BCLR Banderas %00001000 ;MODSEL es 0, se pone ModActual en Banderas en 0
+                BSET Banderas %00010000 ;Se denota que hubo un cambio de modo con CambMod=1
+                BRA CLEAN_SCREEN ;se limpia la pantalla si hubo un cambio de modo
+MODSEL1:
+                BRSET Banderas %00001000 FIN_DETERMINE ;MODSEL es 1, se verifica por modo CONFIG
+                BSET Banderas %00001000 ;MODSEL es 1, se pone ModActual en Banderas en 1
+                BSET Banderas %00010000 ;Se denota que hubo un cambio de modo con CambMod=1
+CLEAN_SCREEN:
+                LDAA CLEAR_LCD ;cuando se cambia de modo, se limpia la pantalla
+                JSR Send_Command ;envio de comando de limpieza de pantalla
+                MOVB D2ms,Cont_Delay ;luego de enviar comando limpiar pantalla se debe esperar 2ms
+                JSR Delay
+FIN_DETERMINE:
+                RTS
+                
+;------------------------------------------------------------------------------
+INIT_LCD:
+                LDX #iniDsp+1 ;Se carga en X la tabla que contiene los comandos de inicializacion. Posicion 0 tiene el tamano de la tabla.
+                CLRB
+COMMANDS:
+                LDAA B,X ;Se recorren los comandos con direccionamiento indexado por acumulador B
+                JSR Send_Command ;Se ejecuta cada comando
+                MOVB D40us,Cont_Delay ;40us son necesarios luego de enviar cualquiera de los comando de inicializacion
+                JSR Delay
+                INCB ;siguiente comando
+                CMPB iniDsp
+                BNE COMMANDS ;Si ya se ejecutaron todos los comandos de la tabla, terminar comandos de inicialización
+                LDAA CLEAR_LCD ;Cargar comando de limpiar pantalla
+                JSR Send_Command ;enviar comando de limpiar pantalla
+                MOVB D2ms,Cont_Delay ;luego de enviar comando limpiar pantalla se debe esperar 2ms
+                JSR Delay
+                RTS
+
+
+;-------------------------------------------------------------------------------
+
 
 
 
@@ -367,6 +353,38 @@ LINEA2:         ldaa 1,y+
                 bra LINEA2
 
 TERMINA_LCD:           rts
+
+Cargar_LCD2:     ldaa ADD_L1
+                jsr Send_Command
+                movb D40uS,Cont_Delay
+                jsr Delay
+
+LINEA12:         ldaa 1,x+ ;Se va cargando mensaje
+                cmpa #$00
+                beq CARGAR_LINEA22
+
+                jsr Send_Data
+
+                movb D40uS,Cont_Delay
+                jsr Delay
+                bra LINEA12
+
+
+CARGAR_LINEA22:  ldaa ADD_L2
+                jsr Send_Command
+                movb D40uS,Cont_Delay
+                jsr Delay
+
+
+LINEA22:         ldaa 1,y+
+                cmpa #$00
+                beq TERMINA_LCD2
+                jsr Send_Data
+                movb D40uS,Cont_Delay
+                jsr Delay
+                bra LINEA22
+
+TERMINA_LCD2:           rts
 
 ;-------------------------------------------------------------------------------
 Send_Command:   psha
@@ -634,24 +652,53 @@ Fin_Run:
                 RTS
 
 ;------------------------------------------------------------------------------
-RTI_ISR:        bset CRGFLG,$80                 ; Se reinicia la bandera de interrupcion
-                ldx Cont_Reb
-                cpx #0
-                beq fin_RTI                         ; Si el contador esta en 0 no se debe decrementar
-                dec Cont_Reb
-fin_RTI:        rti
+RTI_ISR:
+                BSET CRGFLG %10000000 ;se limpia la bandera de interrupcion RTI
+                TST Cont_Reb ;se ve si el contador de rebotes llego a 0
+                BEQ CHECK_TIMER;si no, se pasa a revisar el timer
+                DEC Cont_Reb
+CHECK_TIMER:
+                TST TIMER_CUENTA ;se revisa si el timer ha llegado a 0
+                BEQ FIN_RTI
+                DEC TIMER_CUENTA
+FIN_RTI:
+                RTI
 
 ;------------------------------------------------------------------------------
-PH0_ISR:        Bset PIFH,$01                         ; Se reinicia la bandera de interrupcion
-                Bclr Banderas,$04
-                Clr Cont_TCL
-                Ldaa MAX_TCL
-                Ldx #Num_Array
-
-vaciado_ph0:       Movb #$FF,1,X+                         ; Iteraciï¿½n para vaciar array
-                Dbne a, vaciado_ph0
-
-                Rti
+;   Subrutina de servicio a interrupcion keywakeup en puerto H: revisa las 4
+;     posibles fuentes de interrupcion PH0, PH1, PH2, PH3. La primer borra el
+;     valor de CUENTA, la segunda borra el valor de AcmPQ, la tercera disminuye
+;     el brillo en un 5%, la cuarta aumenta el brillo en un 5%.
+;------------------------------------------------------------------------------
+PTH_ISR:
+                BRSET Banderas %00001000 NO_RUN ;las interrupciones PTH
+                BRCLR PIFH $01 PTH1 ;si es 1, se revisa por la siguiente fuente de interrupcion
+                BSET PIFH $01 ;se apaga la bandera de la fuente de interrupcion
+                BSET CRGINT %10000000 ;Habilita interrupciones de RTI
+                MOVB #$00,PORTE ;se apaga el relay
+                CLR CUENTA ;se reinicia la cuenta
+PTH1:
+                BRCLR PIFH $02 NO_RUN ;si es 1, se revisa por la siguiente fuente de interrupcion
+                BSET PIFH $02 ;se apaga la bandera de la fuente de interrupcion
+                CLR AcmPQ ;se limpia el acumulador
+NO_RUN:
+		LDAA BRILLO
+                LDAB #5
+                BRCLR PIFH $04 PTH3 ;si es 1, se revisa por la siguiente fuente de interrupcion
+                BSET PIFH $04 ;se apaga la bandera de la fuente de interrupcion
+                TSTA
+                BEQ PTH3 ;si BRILLO es 0, no se le puede restar 5 y se revisa por la siguiente interrupcion
+                SBA
+                STAA BRILLO ;se le resta 5 a BRILLO
+PTH3:
+                BRCLR PIFH $08 FIN_PTH ;si es 1, se termina la subrutina
+                BSET PIFH $08 ;se apaga la bandera de la fuente de interrupcion
+                CMPA #100
+                BEQ FIN_PTH ;si BRILLO es 100, no se le puede sumar 5 y se termina la rutina
+                ABA
+                STAA BRILLO ;se le suma 5 a BRILLO
+FIN_PTH:
+                RTI ;termina la rutina de atencion a interrupciones
                 
                 
 ;------------------------------------------------------------------------------
@@ -708,31 +755,8 @@ NO_BCD2:
 FIN_BCD_7SEG:
                 RTS
                 
+;-------------------------------------------------------------------------------
                 
-CONV_BIN_BCD:
-                LDAA BIN1 ;se carga parametro de entrada a BIN_BCD_BASE
-                JSR BIN_BCD
-                LDAA BCD_L
-                CMPA #10
-                BHS TRF_BCD1 ;si el numero es mayor o igual a 10 no hay que apagar ninguno display
-                ORAA #$F0 ;
-                SUBA #$40 ;se pone $B en nibble mas significativo para indicar que el display se debe apagar.
-TRF_BCD1:
-                STAA BCD1 ;se guarda resultado en variable de salida
-                BRSET Banderas %00001000 FIN_BIN_BCD ;en modo CONFIG (ModActual=1) no es necesario convertir BIN2
-                LDAA BIN2 ;se carga parametro de entrada a BIN_BCD
-                JSR BIN_BCD
-                LDAA BCD_L
-                CMPA #10
-                BHS TRF_BCD2 ;si el numero es mayor o igual a 10 no hay que apagar ninguno display
-                ORAA #$F0
-                SUBA #$40 ;se pone $B en nibble mas significativo para indicar que el display se debe apagar. $F-$4=$B
-TRF_BCD2:
-                STAA BCD2 ;se guarda resultado en variable de salida
-FIN_BIN_BCD:
-                RTS
-                
-;------------------------------------------------------------------------------
 BIN_BCD:        CLRB ;acumulador para el resultado.
                 LDX #7 ;contador de desplazamiento.
 NEXT_BIT:
@@ -760,4 +784,36 @@ CONFECCIONAR:
                 LSLA ;se extrae el ultimo bit
                 ROLB ;se inserta el ultimo bit en el resultado final.
                 STAB BCD_L
+                RTS
+
+;------------------------------------------------------------------------------
+;   Subrutina CONV_BIN_BCD: recibe como parametros de entrada las variables BIN1 y
+;     BIN2 y realiza la conversion a BCD de cada una de estas variables. La
+;     conversion de BIN2 solo se da en el modo RUN puesto que es el unico modo
+;     en el que BIN2 tiene valores relevantes. Ademas, luego de la conversion, si
+;     el numero es menor que 10 significa que el display de 7 segmentos utilizado
+;     para las decenas no es necesario que este encendido; en este caso se escribe
+;     $B en el nibble mas significativo de BCD1 y BCD2 para indicarlo.
+;------------------------------------------------------------------------------
+CONV_BIN_BCD:
+                LDAA BIN1 ;se carga parametro de entrada a BIN_BCD_BASE
+                JSR BIN_BCD
+                LDAA BCD_L
+                CMPA #10
+                BHS TRF_BCD1 ;si el numero es mayor o igual a 10 no hay que apagar ninguno display
+                ORAA #$F0 ;
+                SUBA #$40 ;se pone $B en nibble mas significativo para indicar que el display se debe apagar.
+TRF_BCD1:
+                STAA BCD1 ;se guarda resultado en variable de salida
+                BRSET Banderas %00001000 FIN_BIN_BCD ;en modo CONFIG (ModActual=1) no es necesario convertir BIN2
+                LDAA BIN2 ;se carga parametro de entrada a BIN_BCD
+                JSR BIN_BCD
+                LDAA BCD_L
+                CMPA #10
+                BHS TRF_BCD2 ;si el numero es mayor o igual a 10 no hay que apagar ninguno display
+                ORAA #$F0
+                SUBA #$40 ;se pone $B en nibble mas significativo para indicar que el display se debe apagar. $F-$4=$B
+TRF_BCD2:
+                STAA BCD2 ;se guarda resultado en variable de salida
+FIN_BIN_BCD:
                 RTS
