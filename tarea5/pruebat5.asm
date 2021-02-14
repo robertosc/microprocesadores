@@ -21,40 +21,39 @@
                 org $1000
 Banderas:       ds 1  ;X:X:CAMBIO_MODO:MODSEL:X:ARRAY_OK:TCL_LEIDA:TCL_LISTA.
 
-MAX_TCL:        db 2  ;cantidad maximas de teclas que se leen
-Tecla:          ds 1  ;en esta variable se almacena el valor leido del teclado en la subrutina MUX_TECLADO.
-Tecla_IN:       ds 1  ;en esta variable se almacena temporalmente el valor de Tecla antes de la supresion de rebotes. Si despues de la supresion se da que Tecla y Tecla_IN son iguales es porque efectivamente se presiono una tecla que debe ser guardada.
-Cont_Reb:       ds 1  ;es el contador de ticks del RTI, usado para suprimir rebotes.
-Cont_TCL:       ds 1  ;es el indice utilizado para escribir en el arreglo que guarda las teclas presionadas.
-Patron:         ds 1  ;es el indice que lleva las iteraciones en subrutina MUX_TECLADO.
-Num_Array:      ds 2  ;en este arreglo se almacenan todas las teclas presionadas por el usuario.
-CUENTA:         ds 1  ;cantidad de tornillos contados para cada empaque.
-AcmPQ:          ds 1  ;cantidad de empaques completados. Entre 0 y 99 y puede rebasar.
-CantPQ:         ds 1  ;cantidad maxima de tornillos por cada empaque. Entre 12 y 96. Definido por usuario en MODO CONFIG.
-TIMER_CUENTA:   ds 1  ;da la cedencia de incremento de CUENTA. Simula el paso de tornillos. Decrementada por RTI_ISR.
-LEDS:           ds 1  ;guarda el estado de los LEDS. LED PB1 corresponde a modo CONFIG, LED PB0 a modo RUN.
-BRILLO:         ds 1  ;Variable controlada por PTH3/PTH2 para incrementar/decrementar el brillo de la pantalla LCD.
-CONT_DIG:       ds 1  ;cuenta cual digito de 7 segmentos se debe habilitar. Cambia cada vez que CONT_TICKS alcanza 100.
-CONT_TICKS:     ds 1  ;contador de ticks de Output Compare para multiplexar.
+MAX_TCL:        db 2  ;Maximo numero de teclas leidas
+Tecla:          ds 1  ;Variable que almacena la tecla leida
+Tecla_IN:       ds 1  ;Valor temporal tomado por el teclado
+Cont_Reb:       ds 1  ;Contador para eliminar los probelemas de rebotes
+Cont_TCL:       ds 1  ;Indice para el array de teclas
+Patron:         ds 1  ;Indice para MUX TECLADO
+Num_Array:      ds 2  ;Todas las teclas guardadas
+CUENTA:         ds 1  ;Contador de tornillos para cada empaque.
+AcmPQ:          ds 1  ;Contador de empaques completados
+CantPQ:         ds 1  ;cantidad de tornillos por cada empaque.
+TIMER_CUENTA:   ds 1  ;Conteo de tornillos por medio de interrupcion rti
+LEDS:           ds 1  ;PB1 para modo CONFIG, PB0 a modo RUN.
+BRILLO:         ds 1  ;Brillo elegido por el usuario de la pantalla
+CONT_DIG:       ds 1  ;Habilitador de pantalla
+CONT_TICKS:     ds 1  ;contador para el Output Compare
 
-DT:             ds 1  ;ciclo de trabajo. DT = N-K.
-BIN1:           ds 1  ;variable de entrada a subrutina CONV_BIN_BCD. Utilizada para CantPQ y CUENTA.
-BIN2:           ds 1  ;variable de entrada a subrutina CONV_BIN_BCD. Utilizada para AcmPQ.
-BCD_L:          ds 1  ;variable donde se guarda la salida de BIN_BCD. Utilizada para CONV_BIN_BCD.
-LOW:            ds 1  ;variable requerida para el algoritmo de la subrutina BIN_BCD.
-VMAX:           db 245 ;valor maximo de la variable TIMER_CUENTA. Usado para volver a iniciar la cuenta regresiva.
-BCD1:           ds 1  ;variable de salida de subrutina BIN_BCD. Tambien es entrada para BCD_7SEG. Utilizada para CantPQ y CUENTA.
-BCD2:           ds 1  ;variable de salida de subrutina BIN_BCD. Tambien es entrada para BCD_7SEG. Utilizada para AcmPQ.
-DISP1:          ds 1  ;corresponde al valor que se escribe en el display de 7 segmentos.
-DISP2:          ds 1  ;BCD2 utiliza DISP1 y DISP2 para desplegarse
-DISP3:          ds 1  ;corresponde al valor que se escribe en el display de 7 segmentos.
-DISP4:          ds 1  ;BCD1 utiliza DISP3 y DISP4 para desplegarse
-
-CONT_7SEG:      ds 2  ;contador de ticks de OC4 para lograr refrescamiento de LEDS y Displays a 10Hz.
-Cont_Delay:     ds 1  ;esta variable se carga con alguna de las siguientes tres constantes para generar retrasos temporales.
-D2ms:           db 100  ;100 ticks a 50kHz son 2 milisegundos
-D260us:         db 13  ;13 ticks a 50kHz son 260 microsegundos
-D40us:          db 2  ;2 ticks a 50kHz son 40 microsegundos
+DT:             ds 1  ;ciclo de trabajo. DT = N-K
+BIN1:           ds 1  ;variable en binario de CantPQ y CUENTA
+BIN2:           ds 1  ;variable en binario de AcmPQ
+BCD_L:          ds 1  ;variable en BCD como salida del convertidor
+LOW:            ds 1  ;Temporal para BIN_BCD
+VMAX:           db 245 ;valor maximo de la variable TIMER_CUENTA
+BCD1:           ds 1  ;Mismo valor que BIN1 pero en BCD
+BCD2:           ds 1  ;Mismo valor que BIN2 pero en BCD
+DISP1:          ds 1  ;BCD2 para display de 7 segmentos (primer byte)
+DISP2:          ds 1  ;BCD2 para display de 7 segmentos (segundo byte)
+DISP3:          ds 1  ;Mismo caso que disp 1 y disp 2 pero para BCD1 (3 Y 4 RESPECTIVAMENTE)
+DISP4:          ds 1
+CONT_7SEG:      ds 2  ;contador de ticks de OC4
+Cont_Delay:     ds 1  ;Guarda el valor de delay que se quiera agregar
+D2ms:           db 100  ;2 milisegundos
+D260us:         db 13  ;260 microsegundos
+D40us:          db 2  ;40 microsegundos
 CLEAR_LCD:      db $01  ;comando para limpiar el LCD
 ADD_L1:         db $80  ;direccion inicio de linea 1
 ADD_L2:         db $C0  ;direccion inicio de linea 2
@@ -81,7 +80,7 @@ DDRAM_ADDR2:    equ $C0
 EOM:            equ $00
 
 
-; mensajes a mostrar
+; MENSAJES
                 org $1070
 CONFIG_MSG1:    FCC "MODO CONFIG"
                 db EOM
@@ -92,203 +91,206 @@ RUN_MSG1:       FCC "MODO RUN"
 RUN_MSG2:       FCC "AcmPQ   CUENTA"
                 db EOM
 ;------------------------------------------------------------------------------
-; 			Vectores de interrupcion:
+;                         Vectores de interrupcion:
 ;------------------------------------------------------------------------------
 
-               org $3E70   ;direccion del vector de interrupcion RTI.
-               dw RTI_ISR  ;direccion de la subrutina de servicio a interrupcion RTI.
-               org $3E4C   ;direccion del vector de interrupcion por key wakeup del puerto H.
-               dw PTH_ISR  ;direccion de la subrutina de servicio a interrupcion del puerto H.
-               org $3E66   ;direccion del vector de interrupcion OC4.
-               dw OC4_ISR  ;direccion de la subrutina de servicio a interrupcion OC4.
+               org $3E70   ;Interrupcion RTI.
+               dw RTI_ISR
+               org $3E4C   ;Interrupcion key wakeup puerto H.
+               dw PTH_ISR
+               org $3E66   ;Interrupcion OC4.
+               dw OC4_ISR
 
 
-;*******************************************************************************
-;                             Programa principal
-;*******************************************************************************
+
 ;------------------------------------------------------------------------------
-;                          Configuracion del hardware
+;                          PROGRAMA PRINCIPAL
 ;------------------------------------------------------------------------------
-    org $2000
-;Configuracion RTI:
-    BSET CRGINT %10000000 ;se habilita RTI
-    MOVB #$17,RTICTL      ;periodo de 1.024 ms
+                org $2000
 
-;Configuracion keywakeup en puerto H:
-    BSET PIEH %00001100   ;se habilita keywakeup en PH2 y PH3. Note que PH0 y PH1 se habilitan en modo RUN. PH7 es por polling.
-    BCLR PPSH $FF   ;las interrupciones deben ocurrir en el flanco decreciente.
+    ; conf de interrupciones
+                bset CRGINT,$80         	;Habilita RTI
+                movb #$17,RTICTL              ;periodo 1.024 ms
 
-;Configuracion PH7 como entrada de proposito general por polling: (Dipswitch)
-    BCLR DDRH %10000000
+                BSET TSCR1,$80                 ;Modulo de timer.
+                BSET TSCR2,$03                 ;prescaler es 2^3 = 8
+                BSET TIOS,$10                 ;se configura el canal 4 como Output Compare.
+                BSET TIE,$10                 ;se habilita interrupcion del canal 4.
+                BCLR TCTL1 3                 ;no es necesario que haya una salida en puerto T. Solo se requiere la interrupcion.
 
-;Configuracion del teclado en puerto A:
-    MOVB #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
-    BSET PUCR %00000001   ;resistencias de pull-up en puerto A. Son necesarias para que haya un 1 en el PAD cuando no se presiona ningun boton del teclado.
+                bset PIEH $0C           ;se habilita keywakeup en PH2 y PH3 para brillo, inicialmente entra a modo config
+                bclr PPSH $FF           ;interrupcionesen flanco decreciente.
+                bclr DDRH $80
 
-;Configuracion del modulo de Timer como Output Compare en el Canal 4:
-    BSET TSCR1 %10000000 ;se habilita modulo de timer.
-    BSET TSCR2 %00000011 ;prescaler es 2^3 = 8
-    BSET TIOS %00010000 ;se configura el canal 4 como Output Compare.
-    BSET TIE %00010000 ;se habilita interrupcion del canal 4.
-    BCLR TCTL1 3 ;no es necesario que haya una salida en puerto T. Solo se requiere la interrupcion.
+                movb #$F0,DDRA          ;IO en puerto A
+                bset PUCR,$01           ;resistencia de pull-up puerto A.
 
-;Configuracion de los displays de 7 segmentos y los LEDS.
-    MOVB #$FF,DDRB ;puerto core B se configura como salida de proposito general. (LEDS y SEGMENTOS)
-    MOVB #$0F,DDRP ;parte baja de puerto P se configura como salida de proposito general. (~Habilitador Segmentos)
-    BSET DDRJ %00000010 ;se configura bit 1 del puerto J como salida de proposito general . (~Habilitador LEDS)
+                movb #$FF,DDRB                 ;LEDS y pantalla de 7 segmentos
+                movb #$0F,DDRP                 ;Habilitador Segmentos
+                bset DDRJ,$02                 ;Habilita LEDS
+                movb #$FF,DDRK                 ;IO puerto K como salida (LCD)
+                movb #$04,DDRE                 ;IO PORTE4 como salida
 
-;Configuracion de la salida SAL: relay en puerto PORTE4.
-    MOVB #$04,DDRE ;se configura PORTE4 como salida
 
-;Configuracion de pantalla LCD
-    MOVB #$FF,DDRK ;todos los pines del puerto K se configura como salida para controlar la LCD.
-
-    CLI        ;habilita interrupciones mascarables.
+                cli        ;interrupciones mascarables.
 ;------------------------------------------------------------------------------
 ;                       Inicializacion de variables
 ;------------------------------------------------------------------------------
-    LDS #$3BFF  ;inicializa el stack
-;Teclado matricial:
-    MOVB #$FF,Tecla
-    MOVB #$FF,Tecla_IN
-    MOVB #$FF,Num_Array
-    CLR Cont_Reb
-    CLR Cont_TCL
-    CLR Patron
+                lds #$3BFF  ;SP
 
-;Displays de 7 segmentos y LEDS:
-    CLR CONT_7SEG
-    CLR CONT_TICKS
-    CLR CONT_DIG
-    MOVB #0,BRILLO
-    MOVB #$02,LEDS
-    CLR BCD1
-    CLR BCD2
-    MOVB SEGMENT,DISP3 ;para tener DISP3 produciendo un 0
-    MOVB SEGMENT,DISP4 ;para tener DISP4 produciendo un 0. Importa mas que nada si se desea que en DISP3 y DISP4 presenten el ultimo valor valido introducido de CantPQ, con OC4
+    ;Displays de 7 segmentos y LEDS:
+                Clr BCD1
+                Clr BCD2
+                Clr CONT_7SEG
+                Clr CONT_TICKS
+                Clr CONT_DIG
+                Clr BRILLO
+
+                Movb #$02,LEDS
+                Movb SEGMENT,DISP3 ;DISP3 genera un 0
+                Movb SEGMENT,DISP4 ;para tener DISP4 produciendo un 0
+
+
+                    ;config teclado mismo a la tarea anterior. Teclas en FF que indica no presionada
+                Clr Cont_Reb
+                Clr Cont_TCL
+                Clr Patron
+                Movb #$FF,Tecla
+                Movb #$FF,Tecla_IN
+                Movb #$FF,Num_Array
+
 
 ;Programa:
-    CLR CantPQ
-    CLR CUENTA
-    MOVB VMAX,TIMER_CUENTA
-    CLR AcmPQ
-    CLR Banderas
-    BSET Banderas,%00010000 ;CambMod=1 (MODO_CONFIG)
+                Clr CantPQ               ;limpia variables
+                Clr CUENTA
+                Clr AcmPQ
+                Clr Banderas
+                Movb VMAX,TIMER_CUENTA
 
-    LDD TCNT ;se carga el valor actual de TCNT para reajustar el output compare
-    ADDD #60 ;60 cuentas equivalen 50kHz con prescalador=8
-    STD TC4 ;se actualiza el nuevo valor a alcanzar.
 
-                        ldx #iniDsp
-                        inx
-                        clrb
+                Ldd TCNT 		;Reajustar el output compare
+                Addd #60 		;50kHz
+                Std TC4 		;Valor a alcanzar.
+                Bset Banderas,$10 	;MODO_CONFIG activado
 
-INITIALIZE_LCD:         ldaa b,x
-                        jsr Send_Command
-                        movb D40us,Cont_Delay
-                        jsr Delay
-                        incb
-                        cmpb iniDsp
-                        bne INITIALIZE_LCD
-                        ldaa CLEAR_LCD
-                        jsr Send_Command
-                        movb D2ms,Cont_Delay
-                        jsr Delay
+                ldx #iniDsp
+                inx
+                clrb
+
+INITIALIZE_LCD:
+                ldaa b,x                ;cargamos inicio de inicio de display
+                jsr Send_Command        ;carga comando
+                movb D40us,Cont_Delay   ;delay
+                jsr Delay
+                incb                    ;aumenta
+                cmpb iniDsp             ;vemos si recorrimos todo
+                bne INITIALIZE_LCD
+                ldaa CLEAR_LCD          ;limpia
+                jsr Send_Command
+                movb D2ms,Cont_Delay    ;delay
+                jsr Delay
 
 
 ;------------------------------------------------------------------------------
 MAIN:
-    		tst CantPQ
-    		beq ESTADO_ZERO ;CantPQ=0? Ir a CONFIG
-    ;Revisamos si modsel==modactual
+                tst CantPQ
+                beq ESTADO_ZERO ;CantPQ=0? Ir a CONFIG
+                ;Revisamos si modsel==modactual
                 Brclr PTIH %10000000 MODE0 ; Si modesel 0
 
-MODE1:		Brset Banderas %00001000 FIN_COMP;No hubo cambio de modo
+MODE1:
+                Brset Banderas %00001000 FIN_COMP;No hubo cambio de modo
                 Bset Banderas %00001000 ;Modo actual en 1
                 Bra CAMBIO_MODE ;hubo cambio de modo
 
-MODE0:          Brclr Banderas %00001000 FIN_COMP ;No hubo cambio de modo
+MODE0:
+                Brclr Banderas %00001000 FIN_COMP ;No hubo cambio de modo
                 Bclr Banderas %00001000 ; bandera ModActual en 0
                 ;Si llega a este punto, hubo cambio
 
 
 CAMBIO_MODE:
                 Bset Banderas,%00010000 ;hubo cambio de modo que se ve en la bandera correspondiente
-                Ldaa CLEAR_LCD ;cuando se cambia de modo, se limpia la pantalla
+                ldaa CLEAR_LCD ;cuando se cambia de modo, se limpia la pantalla
                 Jsr Send_Command
                 Movb D2ms,Cont_Delay ;delay  2ms
                 Jsr Delay
-FIN_COMP:	Brset Banderas %00001000 CONFIG_LCD ;Si ModActual es 1 salta a INIT_CONFIG
+FIN_COMP:
+                Brset Banderas %00001000 CONFIG_LCD ;Si ModActual es 1 salta a INIT_CONFIG
 
 
-CONFIG_MODE:            Brset Banderas,$08,CONFIG_LCD
-
-CONFIG_RUN:             brclr Banderas,$10,CALL_RUN
-
-                        bset PIEH,$03     ;se habilitan puertos H 0 y 1
-                        bclr Banderas,$10  ;CAMBIO DE MOD EN 0
-                        ldx #RUN_MSG1
-                        ldy #RUN_MSG2
-                        movb #$01,LEDS ; enciende led pb0
-                        ldaa #1
-                        ; CONFIGURACION PREVIA AL LCD, en primera iter entra ac?
-
-                        jsr CARGAR_LCD
-
-CALL_RUN:               jsr MODO_RUN
-                        jmp MAIN
+CONFIG_MODE:
+                Brset Banderas,$08,CONFIG_LCD  ;Nos fijamos cual modo esta seleccionado
 
 
-ESTADO_ZERO:            bset Banderas,$08
+CONFIG_RUN:
+                brclr Banderas,$10,CALL_RUN  ;Caso de modo seleccionado run
 
-CONFIG_LCD:             bset CRGINT,$80 ;NO ES NECESARIA, CRGINT YA HABILITADAS
-                        brclr Banderas,$10,CALL_CONFIG  ; Entra SOLO en primera iteraci?n
-                        bclr Banderas,$10 ; se pone cambio de modo en 0
-
-                        bclr PIEH,$03     ;se deshabilitan puertos H 0 y 1
-                        bclr Banderas,$10
-
-                        ldx #CONFIG_MSG1
-                        ldy #CONFIG_MSG2
-
-                        clr CUENTA
-                        clr AcmPQ
-
-                        movb #$00,PORTE
-                        movb #$02,LEDS ; enciende led pb1
-
-                        movb CantPQ,BIN1
-
-                        ; CONFIGURACION PREVIA AL LCD, en primera iter entra ac?
+                bset PIEH,$03     ;se habilitan puertos H 0 y 1
+                bclr Banderas,$10  ;CAMBIO DE MOD EN 0
+                ldx #RUN_MSG1   ;Mensajes por display
+                ldy #RUN_MSG2
+                movb #$01,LEDS ; enciende led pb0
+                ldaa #1
+                ; CONFIGURACION PREVIA AL LCD, en primera iter entra ac?
 
                         jsr CARGAR_LCD
 
+CALL_RUN:
+                jsr MODO_RUN
+                jmp MAIN
 
 
-CALL_CONFIG:            jsr MODO_CONFIG
+ESTADO_ZERO:
+                bset Banderas,$08
+
+CONFIG_LCD:
+                bset CRGINT,$80
+                brclr Banderas,$10,CALL_CONFIG  ; Entra SOLO en primera iteraci?n
+                bclr Banderas,$10 ; se pone cambio de modo en 0
+
+                bclr PIEH,$03     ;se deshabilitan puertos H 0 y 1
+                bclr Banderas,$10
+
+                ldx #CONFIG_MSG1
+                ldy #CONFIG_MSG2
+
+                clr CUENTA
+                clr AcmPQ
+
+                movb #$00,PORTE
+                movb #$02,LEDS ; enciende led pb1
+
+                movb CantPQ,BIN1
+
+                ; CONFIGURACION PREVIA AL LCD, en primera iter entra ac?
+
+                jsr CARGAR_LCD
 
 
-volver_main:            jmp MAIN
+
+CALL_CONFIG:
+                jsr MODO_CONFIG
+
+
+volver_main:    jmp MAIN
 
 ;------------------------------------------------------------------------------
-;   Subrutina Send_Command: se encarga de enviar al LCD el comando que recibe
-;     por el acumulador A.
-;------------------------------------------------------------------------------
-Send_Command:   psha
-                anda #$F0
-                lsra
+Send_Command:   psha                    ;se guarda a en pila
+                anda #$F0               ;mascara de parte alta
+                lsra                    ;deja limpios los dos bits menos significativos
                 lsra
 
-                staa PORTK
-                bclr PORTK,$01
+                staa PORTK              ;guarda a en portk
+                bclr PORTK,$01          ;modif bits menos significativos
                 bset PORTK,$02
 
-                movb D260uS,Cont_Delay
+                movb D260uS,Cont_Delay  ;delay
                 jsr Delay
 
                 bclr PORTK,$02
-                pula
-                anda #$0F
+                pula                    ;trae a
+                anda #$0F               ;mascara parte baja
                 lsla
                 lsla
 
@@ -296,16 +298,12 @@ Send_Command:   psha
                 bclr PORTK,$01
                 bset PORTK,$02
 
-                movb D260uS,Cont_Delay
+                movb D260uS,Cont_Delay  ; delay
                 jsr Delay
 
                 bclr PORTK,$02
                 rts
-;------------------------------------------------------------------------------
 
-;------------------------------------------------------------------------------
-;   Subrutina Send_Data: se encarga de enviar al LCD el dato que recibe
-;     por el acumulador A.
 ;------------------------------------------------------------------------------
 Send_Data:
                 psha ;el dato se recibe en acumulador A y se protege para poder analizar sus nibbles por separado
@@ -329,32 +327,27 @@ Send_Data:
                 rts
 
 ;------------------------------------------------------------------------------
-;   Subrutina Delay: se mantiene en un loop cerrado hasta que Cont_Delay sea 0.
-;     Cont_Delay es descontado por OC4 a 50 kHz.
-;------------------------------------------------------------------------------
 Delay:
-                tst Cont_Delay
+                tst Cont_Delay      ;Espera hasta que OC4 disminuya
                 bne Delay
                 rts
 
-;------------------------------------------------------------------------------
-;   Subrutina BCD_BIN: el arreglo Num_Array corresponde a un numero en BCD donde
-;     cada entrada es un digito. Esta subrutina toma este arreglo y calcula en
-;     binario el valor numerico del arreglo. El resultado se almacena en CantPQ.
+
 ;------------------------------------------------------------------------------
 BCD_BIN:        ldx #Num_Array
-                ldab 1,x
+                ldab 1,x           ;revisamos si la unidad es distinta de FF
                 cmpb #$FF
-                beq UNIDAD
-                stab CantPQ
-                bra DECENA
+                beq UNIDAD         ;si es FF, el valor no es valido
+                stab CantPQ        ;Si no, lo guarda en cantpq
+                bra DECENA         ;lee decenas
 
 UNIDAD:         movb Num_Array,CantPQ
                 rts
 
-DECENA:                clra
-                ldab Num_Array
-                ldy #10
+DECENA:
+                clra
+                ldab Num_Array    ;carga en b
+                ldy #10           ;multiplica decenas por 10
                 emul
 
                 addb CantPQ
@@ -362,54 +355,45 @@ DECENA:                clra
 
                 rts
 
-;------------------------------------------------------------------------------
-;   Subrutina BIN_BCD: esta subrutina realiza la conversion de un numero
-;     binario entre 0 y 99 (inclusivos) a su representacion en BCD. El numero
-;     a convertir se recibe como parametro por el registro A. El resultado en
-;     BCD se devuelve por la variable BCD_L, donde el nibble mas significativo son
-;     las decenas y el menos significativo las unidades.
+
 ;------------------------------------------------------------------------------
 BIN_BCD:
 
-        Ldab #7  ; Contador B=15
-        Clr BCD_L
+                Ldab #7  ; Contador B=15
+                Clr BCD_L
 
-lazo    Lsla
-        Rol BCD_L  ;Lo mismo para la variable BCD_L y BCD_H
-        Psha
+lazo:
+                Lsla
+                Rol BCD_L  ;Lo mismo para la variable BCD_L y BCD_H
+                Psha
 
-        Ldaa BCD_L ;Cargamos en A el BCD_L
-        Anda #$0F  ;Tomamos solo en cuenta los 4LSB
-        Cmpa #5   ;Comparamos con 5
-        Blo men031  ;Si es menor, salte a men031
-        Adda #3  ;En caso de mayor, sume 3
+                Ldaa BCD_L ;Cargamos en A el BCD_L
+                Anda #$0F  ;Tomamos solo en cuenta los 4LSB
+                Cmpa #5   ;Comparamos con 5
+                Blo men031  ;Si es menor, salte a men031
+                Adda #3  ;En caso de mayor, sume 3
 
-men031  Staa LOW  ;Guardamos temporalmente el resultado anterior
+men031
+                Staa LOW  ;Guardamos temporalmente el resultado anterior
 
-        Ldaa BCD_L
-        Anda #$F0 ;En A tenemos cargado del bit 4 al 7
-        Cmpa #$50  ;Comparamos con $50
-        Blo men301
-        Adda #$30   ;Si es mayor, sume 30
+                Ldaa BCD_L
+                Anda #$F0 ;En A tenemos cargado del bit 4 al 7
+                Cmpa #$50  ;Comparamos con $50
+                Blo men301
+                Adda #$30   ;Si es mayor, sume 30
 
-men301  Adda LOW   ;Se suman los bits para obtener los 4 LSB de resultado
-        Staa BCD_L  ;Se guarda el resultado
-        Pula
-        Dbne b, lazo
+men301
+                Adda LOW   ;Se suman los bits para obtener los 4 LSB de resultado
+                Staa BCD_L  ;Se guarda el resultado
+                Pula
+                Dbne b, lazo
 
-        Lsla
-        Rol BCD_L
+                Lsla
+                Rol BCD_L
 
-        Rts
+                Rts
 
-;------------------------------------------------------------------------------
-;   Subrutina CONV_BIN_BCD: recibe como parametros de entrada las variables BIN1 y
-;     BIN2 y realiza la conversion a BCD de cada una de estas variables. La
-;     conversion de BIN2 solo se da en el modo RUN puesto que es el unico modo
-;     en el que BIN2 tiene valores relevantes. Ademas, luego de la conversion, si
-;     el numero es menor que 10 significa que el display de 7 segmentos utilizado
-;     para las decenas no es necesario que este encendido; en este caso se escribe
-;     $B en el nibble mas significativo de BCD1 y BCD2 para indicarlo.
+
 ;------------------------------------------------------------------------------
 CONV_BIN_BCD:
                 Ldaa BIN1
@@ -420,9 +404,7 @@ CONV_BIN_BCD:
                 Adda #$B0
 
 mayor1          Staa BCD1
-                ;Esto lo tiene el de victor pero no se si es necesario
-                ;BRSET Banderas %00001000 FIN_BIN_BCD ;en modo CONFIG (ModActual=1) no es necesario convertir BIN2
-                ;------------------------------------------
+
                 Ldaa BIN2
                 Jsr BIN_BCD
                 Ldaa BCD_L
@@ -433,46 +415,44 @@ mayor1          Staa BCD1
 mayor2          Staa BCD2
                 Rts
 
-;------------------------------------------------------------------------------
-; Subrutina TAREA_TECLADO: En esta subrutina se da la lectura del teclado. Aqui
-;     se lee el teclado en el puerto A, se suprimen los rebotes, y se maneja la
-;     situacion de tecla retenida.
+
 ;------------------------------------------------------------------------------
 TAREA_TECLADO:
-        Ldaa Cont_Reb
-        Cmpa #0
-        Bne RETORNAR
-        Jsr MUX_TECLADO
-        Ldaa Tecla
-        Cmpa #$FF
-        Bne PRESIONADA
-        Brclr Banderas,$01,RETORNAR                 ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
-        Bclr Banderas,#$03                         ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
-        Jsr FORMAR_ARRAY
-        Bra RETORNAR
+                Ldaa Cont_Reb
+                Cmpa #0
+                Bne RETORNAR
+                Jsr MUX_TECLADO
+                Ldaa Tecla
+                Cmpa #$FF
+                Bne PRESIONADA
+                Brclr Banderas,$01,RETORNAR                 ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
+                Bclr Banderas,#$03                         ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
+                Jsr FORMAR_ARRAY
+                        Bra RETORNAR
 
 PRESIONADA:
-        Brclr Banderas,$02,NotProc
-        Ldaa Tecla_IN
-        Cmpa Tecla
-        Bne Delete
-        Bset Banderas,$01                         ; La tecla esta lista para registro
-        bra RETORNAR
+                Brclr Banderas,$02,NotProc
+                Ldaa Tecla_IN
+                Cmpa Tecla
+                Bne Delete
+                Bset Banderas,$01                         ; La tecla esta lista para registro
+                bra RETORNAR
 
 
 
 NotProc:
-        Movb Tecla, Tecla_IN
-        Bset Banderas, #2
-        Movb #10,Cont_Reb
-        Bra RETORNAR
+                Movb Tecla, Tecla_IN
+                Bset Banderas, #2
+                Movb #10,Cont_Reb
+                Bra RETORNAR
 
-DELETE: Movb #$FF,Tecla
-        Movb #$FF,Tecla_IN
-        Bclr Banderas, #3
+DELETE:
+                Movb #$FF,Tecla
+                Movb #$FF,Tecla_IN
+                Bclr Banderas, #3
 
 RETORNAR:
-        RTS
+                RTS
 
 
 ;------------------------------------------------------------------------------
@@ -548,77 +528,68 @@ BORRAR:         dec Cont_TCL
 end_formar:     movb #$FF,Tecla_IN
                 rts
 
-;------------------------------------------------------------------------------
-;   Subrutina MODO_CONFIG: Esta subrutina corresponde a las operaciones necesarias
-;     llevar a cabo la configuracion del sistema. Primero pone el valor adecuado
-;     de los LEDS para que el usuario pueda saber el modo. Posteriormente, con
-;     el uso de TAREA_TECLADO se da la lectura del valor CantPQ. Una vez que el
-;     usuario presiona ENTER se valida que el valor de CantPQ este entre 20 y 90.
-;     Si es asi entonces coloca este valor en BIN1 para que pueda ser desplegado
-;     en los displays 3 y 4. Cuando el valor no es valido se borra CantPQ.
-;------------------------------------------------------------------------------
-MODO_CONFIG:            movb CantPQ, BIN1
-                        brset Banderas,$04,DATA_CHECK
-                        jsr TAREA_TECLADO
-                        rts
-DATA_CHECK:             jsr BCD_BIN
-                        ldaa #25
-                        cmpa CantPQ
-                        bgt INVALIDO
-                        ldaa #85
-                        cmpa CantPQ
-                        bge VALIDO
-
-INVALIDO:               bclr Banderas,$04
-                        bclr CantPQ,$FF
-                        rts
-
-VALIDO:                        bclr Banderas, $04
-                        movb CantPQ,BIN1
-                        rts
 
 ;------------------------------------------------------------------------------
-;   Subrutina MODO_RUN: esta subrutina se encarga de simular el conteo de
-;     tornillos a 4Hz por medio del contador de ticks TIMER_CUENTA. Los tornillos
-;     se cuentan en la variable CUENTA y cuando esta alcanza CantPQ se enciende
-;     el relay en el puerto PORTE4, ademas de incrementar AcmPQ para mostrar que
-;     se termino otro paquete. No se permite que AcmPQ supere un valor de 99.
+MODO_CONFIG:
+                movb CantPQ, BIN1                       ;Movemos CatnPQ a bin1
+                brset Banderas,$04,DATA_CHECK           ;Revisa bandera arrayok
+                jsr TAREA_TECLADO                       ;Si no arrayok, va a teclado
+                rts
+
+DATA_CHECK:
+                jsr BCD_BIN                              ;pasa de bcd a bin
+                ldaa #25                                 ;limites
+                cmpa CantPQ
+                bgt INVALIDO
+                ldaa #85
+                cmpa CantPQ
+                bge VALIDO
+
+INVALIDO:                                                ;caso en que el valor no esta en rango
+                bclr Banderas,$04
+                bclr CantPQ,$FF
+                rts
+
+VALIDO:
+                bclr Banderas, $04                       ;caso en rango, se guarda
+                movb CantPQ,BIN1
+                rts
+
+
 ;------------------------------------------------------------------------------
 MODO_RUN:
-                Tst TIMER_CUENTA ;si timer cuenta es cero
-                Bne Fin_Run ;si no lo es, se retorna
+                Tst TIMER_CUENTA         ;si timer cuenta es cero
+                Bne Fin_Run                 ;si no lo es, se retorna
+                
                 ;Caso en que timer cuenta es cero
+                
                 Movb VMAX,TIMER_CUENTA ;se recarga con vmax
-                Inc CUENTA ;incrementamos cuenta
+                Inc CUENTA                 ;incrementamos cuenta
                 Ldaa CUENTA ;
                 Cmpa CantPQ ;
-                Bne Fin_Run ;si cant!=cuenta
-                Inc AcmPQ ;se incrementa AcmPQ
-                Bclr CRGINT %10000000 ;se deshabilitamos RTI
-                Movb #$04,PORTE ;se activa el relay
+                Bne Fin_Run                 ;si cant!=cuenta
+                Inc AcmPQ                 ;se incrementa AcmPQ
+                Bclr CRGINT %10000000         ;se deshabilitamos RTI
+                Movb #$04,PORTE         ;activa el relay
                 Ldaa #100
-                Cmpa AcmPQ ;se ve si AcmPQ ha llegado a 100 por rebase
-                Bne Fin_Run ;si no se ha llegado a 100, retorna
-                CLR AcmPQ ;si se llega a 100, se hace rebase
+                Cmpa AcmPQ
+                Bne Fin_Run                 ; retorna si no llega a 100
+                CLR AcmPQ                 ;si se llega a 100, hay rebase
 Fin_Run:
                 MOVB CUENTA,BIN1
                 MOVB AcmPQ,BIN2
                 RTS
 
+
 ;------------------------------------------------------------------------------
-;   Subrutina Cargar_LCD: esta subrutina se encarga de enviar a la pantalla LCD
-;     cada caracter, uno por uno, de ambas lineas del LCD. Recibe los parametros
-;     en los registros indice X y Y, que contienen las direcciones de inicio a
-;     los mensajes de las lineas 1 y 2 respectivamente.
-;------------------------------------------------------------------------------
-Cargar_LCD:     ldaa ADD_L1
-                jsr Send_Command
-                movb D40uS,Cont_Delay
+Cargar_LCD:     ldaa ADD_L1                           ;inicio de linea
+                jsr Send_Command                ;envía comando
+                movb D40uS,Cont_Delay           ;delay
                 jsr Delay
 
-LINEA1:         ldaa 1,x+ ;Se va cargando mensaje
+LINEA1:         ldaa 1,x+                         ;Se va cargando mensaje
                 cmpa #$00
-                beq CARGAR_LINEA2
+                beq CARGAR_LINEA2               ;Se pasa a cargar linea 2
 
                 jsr Send_Data
 
@@ -627,58 +598,52 @@ LINEA1:         ldaa 1,x+ ;Se va cargando mensaje
                 bra LINEA1
 
 
-CARGAR_LINEA2:  ldaa ADD_L2
+CARGAR_LINEA2:  ldaa ADD_L2                     ;inicio linea 2
                 jsr Send_Command
                 movb D40uS,Cont_Delay
                 jsr Delay
 
 
-LINEA2:         ldaa 1,y+
+LINEA2:         ldaa 1,y+                       ; Se va cargando mensaje
                 cmpa #$00
                 beq TERMINA_LCD
                 jsr Send_Data
-                movb D40uS,Cont_Delay
+                movb D40uS,Cont_Delay           ; delay
                 jsr Delay
                 bra LINEA2
 
 TERMINA_LCD:    rts
 
+
 ;------------------------------------------------------------------------------
-;   Subrutina BCD_7SEG: esta subrutina se encarga de tomar los valores en BCD1
-;     y BCD2 y determinar el valor de DISP1, DISP2, DISP3, DISP4. Estas ultimas
-;     cuatro variables son las que indican cuales segmentos de los displays se
-;     deben encender para que se muestre el numero deseado. Sencillamente se
-;     se analiza cada nibble de BCD1 y BCD2, y se toman decisiones a partir de
-;     sus valores. En modo CONFIG (MODSEL=1) se apagan DISP1 y DISP2. Cuando
-;     CPROG=0 se tiene la excepcion que se quieren desplegar ambos ceros
-;------------------------------------------------------------------------------
-BCD_7SEG:       ldaa CantPQ
-                cmpa #0
-                bne NOT_ZERO
+BCD_7SEG:       ldaa CantPQ                     ; Cargamos valor en cantpq
+                cmpa #0                         ; si es zero se apagan pantallas 3 y 4
+                bne NOT_ZERO                    ; 1 y 2 en 0
                 movb #$00,DISP1
                 movb #$00,DISP2
                 movb SEGMENT,DISP3
                 movb SEGMENT,DISP4
                 bra return_7seg
 
-NOT_ZERO:       ldx #SEGMENT
-                ldaa #$0F
+NOT_ZERO:       ldx #SEGMENT                    ; carga dir segmentos
+                ldaa #$0F                       ; mascara parte alta
                 anda BCD1
-                movb a,x,DISP4
-                ldaa #$F0
+                movb a,x,DISP4                  ; usamos direccionamiento indexado por acumulador usando valor en parte alta
+                ldaa #$F0                       ; mascara parte baja
                 anda BCD1
-                cmpa #$B0
-                beq caso_B
+                cmpa #$B0                       ; caso de digito vacío
+                beq caso_B                      ; movemos el nibble más alto hacia la derecha
                 lsra
                 lsra
                 lsra
                 lsra
-                movb a,x,DISP3
+                movb a,x,DISP3                  ; movemos a pantalla 3
                 bra CUENTA_ACMPQ
 
-caso_B:         movb #$00,DISP3
+caso_B:         movb #$00,DISP3                 ; pantalla 3 apagada
 
-CUENTA_ACMPQ:   brset Banderas %00001000 BCD2_vacio
+CUENTA_ACMPQ:                                   ;Cantidad de paquetes en BCD2
+                brset Banderas,$08,BCD2_vacio
 
                 ldaa #$0F
                 anda BCD2
@@ -694,164 +659,149 @@ CUENTA_ACMPQ:   brset Banderas %00001000 BCD2_vacio
                 movb a,x,DISP1
                 bra return_7seg
 
-caso_B_disp1:
+caso_B_disp1:                                         ;No hay paquetes completos aún
                 movb #$00,DISP1
                 bra return_7seg
 
 
-BCD2_vacio:     movb #$00,DISP1
+BCD2_vacio:     movb #$00,DISP1                       ;apaga 1 y 2
                 movb #$00,DISP2
 
-return_7seg:         rts
+return_7seg:
+                rts
+
 
 
 
 
 ;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion RTI: Esta subrutina descuenta contadores
-;     siempre y cuando no sean cero. Los ticks del RTI duran 1.024 ms, por lo
-;     que si se cargan variables con X valor se pueden contar aproximadamente
-;     X milisegundos. Cont_Reb tiene un valor maximo de 10; se utiliza para
-;     suprimir rebotes contando ~10ms. TIMER_CUENTA tiene un valor maximo de
-;     VMAX (245), y cuenta ~250ms; se utiliza para simular la cuenta de tornillos
-;     a 4 Hz.
-;------------------------------------------------------------------------------
-RTI_ISR:        bset CRGFLG %10000000 ;limpiamos la bandera de interrupcion RTI
+RTI_ISR:        bset CRGFLG %10000000                 ;borra bandera de interrupcion RTI
                 tst TIMER_CUENTA
-                beq REBOTES  ;Si TIMER CUENTA es cero, pasamos a revisar los rebotes
-                dec TIMER_CUENTA ;Solo se decrementa si TIMER CUENTA no es cero
-                
-REBOTES:	tst Cont_Reb
-                beq FIN_RTI;si llegaron los rebotes a 0, se termina la rubrutina
-                dec Cont_Reb ;Decrementamos el contador de rebotes si aun no ha llegado a cero
+                beq REBOTES                          ;Si TIMER CUENTA es cero, pasamos a revisar los rebotes
+                dec TIMER_CUENTA                 ;Solo se decrementa si TIMER CUENTA no es cero
+
+REBOTES:        tst Cont_Reb
+                beq FIN_RTI                        ;si llegaron los rebotes a 0, se termina la rubrutina
+                dec Cont_Reb                         ;Decrementamos el contador de rebotes si aun no ha llegado a cero
 
 FIN_RTI:
                 rti
 
+
+
 ;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion keywakeup en puerto H: revisa las 4
-;     posibles fuentes de interrupcion PH0, PH1, PH2, PH3. La primer borra el
-;     valor de CUENTA, la segunda borra el valor de AcmPQ, la tercera disminuye
-;     el brillo en un 5%, la cuarta aumenta el brillo en un 5%.
-;------------------------------------------------------------------------------
-PTH_ISR:        Brset Banderas,$08,PH_CONFIG ;Si esa en modo config no toma en cuenta PH0 Y PH1
-                Brclr PIFH $01 PTH1 ;si es 1, se revisa por la siguiente fuente de interrupcion
+PTH_ISR:        Brset Banderas,$08,PH_CONFIG         ;Si esa en modo config no toma en cuenta PH0 Y PH1
+                Brclr PIFH $01 PTH1                 ;si es 1, se revisa por la siguiente fuente de interrupcion
                 ;CASO DE PH0
-		Bset PIFH $01 ;apagamos las interrupciones de PH0
-		Clr CUENTA ;borramos cuenta
-                Bset CRGINT %10000000 ;Habilita interrupciones de RTI
-                Clr PORTE ;apagamos el relay
+                Bset PIFH $01                         ;apagamos las interrupciones de PH0
+                Clr CUENTA                         ;borramos cuenta
+                Bset CRGINT %10000000                 ;Habilita interrupciones de RTI
+                Clr PORTE                         ;apagamos el relay
 
 PTH1:
-                BRCLR PIFH $02 PH_CONFIG ;Si no tiene PH1, revisa PH2
+                BRCLR PIFH $02 PH_CONFIG         ;Si no tiene PH1, revisa PH2
                 ;Caso de PH1
-		BSET PIFH $02 ;se apaga la bandera de la fuente de interrupcion
-                CLR AcmPQ ;se limpia el acumulador
+                BSET PIFH $02                         ;se apaga la bandera de la fuente de interrupcion
+                CLR AcmPQ                         ;se limpia el acumulador
 PH_CONFIG:
-                Brclr PIFH $04 PTH3 ;No hay PH3, revisa ph4
-                Bset PIFH $04 ;se apaga la bandera de la fuente de interrupcion
+                Brclr PIFH $04 PTH3                 ;No hay PH3, revisa ph4
+                Bset PIFH $04                         ;se apaga la bandera de la fuente de interrupcion
                 Tst BRILLO
-                Beq PTH3 ;Caso de brillo minimo, ya no se puede restar
+                Beq PTH3                         ;Caso de brillo minimo, ya no se puede restar
                 Ldaa BRILLO
                 Suba #5
-                Staa BRILLO ;se le resta 5 a BRILLO
+                Staa BRILLO                         ;se le resta 5 a BRILLO
 PTH3:
-                Brclr PIFH $08 FIN_PTH ;no hay ph4, termina de revisar
-                Bset PIFH $08 ;se apaga la fuente de interrupcion
+                Brclr PIFH $08 FIN_PTH                 ;no hay ph4, termina de revisar
+                Bset PIFH $08                         ;se apaga la fuente de interrupcion
                 Ldaa #100
                 Cmpa BRILLO
-                Beq FIN_PTH ;Maximo brillo posible, termina la subrutina
+                Beq FIN_PTH                         ;Maximo brillo posible, termina la subrutina
                 Ldaa BRILLO
                 Adda #5
-                Staa BRILLO ;se le suma 5 a BRILLO
+                Staa BRILLO                     ;se le suma 5 a BRILLO
 FIN_PTH:
-                Rti ;termina la subrutina
+                Rti                             ;termina la subrutina
+
 
 ;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion por output compare en el canal 4:
-;     Descuenta Cont_Delay, refresca cada 100 ms (5000ticks) los valores de
-;     DISP1-DISP4, multiplexa el bus del puerto B para mostrar informacion en
-;     los displays de 7 segmentos y los LEDS, y todo con un ciclo de trabajo
-;     variable que depende de BRILLO.
-;------------------------------------------------------------------------------
-
-
 OC4_ISR:
-                ldaa Cont_Delay
+                ldaa Cont_Delay                 ;Revisamos Cont_Delay para ver si hay que restarle
                 cmpa #0
-                beq CONTROL_PANTALLA
-                dec Cont_Delay
+                beq CONTROL_PANTALLA            ; si ya es 0, pasamos a siguiente func
+                dec Cont_Delay                  ; decrementa
 
 CONTROL_PANTALLA:
-                ldx CONT_7SEG
-               	dex
-              	stx CONT_7SEG
-               	cpx #0
-               	bne CONTADOR_DISP
-               	movw #5000,CONT_7SEG
-               	jsr CONV_BIN_BCD
-               	jsr BCD_7SEG
+                ldx CONT_7SEG                   ; carga contador de 7seg
+                dex                             ; le decrementa
+                stx CONT_7SEG
+                cpx #0
+                bne CONTADOR_DISP               ; Si llega a 0, se le suman 5000 y volvemos a hacer conversiones
+                movw #5000,CONT_7SEG
+                jsr CONV_BIN_BCD
+                jsr BCD_7SEG
 
 CONTADOR_DISP:
-                ldaa CONT_TICKS
+                ldaa CONT_TICKS                 ; revisamos contador de ticks
                 cmpa #100
                 bne MUX
-                clra
+                clra                            ; si llega a 100, se borra
                 staa CONT_TICKS
-                inc CONT_DIG
+                inc CONT_DIG                    ;cambia de digito para pasar a multiplexar
                 ldab CONT_DIG
-                cmpb #5
+                cmpb #5                         ; Si llega a 5 se borra
                 bne MUX
                 clr CONT_DIG
-MUX:
-                tst CONT_TICKS
-                bne DUTY_CYCLE
 
-                movb #$02,PTJ
+MUX:
+                tst CONT_TICKS                  ; si el contador no es 0 pasa a ver el ciclo de trabajo
+                bne DT_BRILLO
+
+                movb #$02,PTJ                   ; cuando es 0 ponemos dato en un display
                 movb #$FF,PTP
 
-                ldab CONT_DIG
+                ldab CONT_DIG                   ; cual display?
                 cmpb #0
-                beq DIG0
+                beq P4
                 cmpb #1
-                beq DIG1
+                beq P3
                 cmpb #2
-                beq DIG2
+                beq P2
                 cmpb #3
-                beq DIG3
+                beq P1
 
                 movb #$00,PTJ
                 movb LEDS,PORTB
-                bra DUTY_CYCLE
-DIG0:
-                movb #$F7,PTP ;se habilita unicamente el display 4
-                MOVB DISP4,PORTB ;se coloca en el puerto B el valor del display 4
-                BRA DUTY_CYCLE
-DIG1:
-                MOVB #$FB,PTP ;se habilita unicamente el display 3
-                MOVB DISP3,PORTB ;se coloca en el puerto B el valor del display 3
-                BRA DUTY_CYCLE
-DIG2:
-                MOVB #$FD,PTP ;se habilita unicamente el display 2
-                MOVB DISP2,PORTB ;se coloca en el puerto B el valor del display 2
-                BRA DUTY_CYCLE
-DIG3:
-                MOVB #$FE,PTP ;se habilita unicamente el display 1
-                MOVB DISP1,PORTB ;se coloca en el puerto B el valor del display 1
-DUTY_CYCLE:
-                ldaa #100
+                bra DT_BRILLO
+P4:
+                movb #$F7,PTP                         ;se habilita display 4
+                movb DISP4,PORTB
+                bra DT_BRILLO
+P3:
+                movb #$FB,PTP                         ;se habilita display 3
+                movb DISP3,PORTB
+                bra DT_BRILLO
+P2:
+                movb #$FD,PTP                         ;se habilita display 2
+                movb DISP2,PORTB
+                bra DT_BRILLO
+P1:
+                movb #$FE,PTP                         ;se habilita display 1
+                movb DISP1,PORTB
+DT_BRILLO:
+                ldaa #100                       ;Modifica el ciclo de trabajo para aumentar o disminuir el brillo
                 suba BRILLO
                 staa DT
 
-    		ldaa CONT_TICKS
+                ldaa CONT_TICKS                 ; si el contador llega a ciclo, termina
                 cmpa DT
                 bne FIN_OC4
-                movb #$FF,PTP ;se deshabilitan displays de 7 segmentos
-                movb #$02,PTJ ;se deshabilitan los LEDS
+                movb #$FF,PTP                         ;deshabilita displays de 7 segmentos
+                movb #$02,PTJ                         ;deshabilita LEDS
 FIN_OC4:
                 inc CONT_TICKS
-                bset TFLG1 %00010000 ;se reinicia la bandera de interrupcion
-                ldd TCNT ;se carga el valor actual de TCNT para reajustar el output compare
-                addd #60 ;60 cuentas equivalen 50kHz con prescalador=8
-                std TC4 ;se actualiza el nuevo valor a alcanzar.
+                bset TFLG1,$10                         ;reinicia la bandera de interrupcion
+                ldd TCNT                         ;Carga el valor actual de TCNT
+                addd #60                         ;60 por preestaclador 8
+                std TC4                         ;actualiza el nuevo valor a alcanzar.
                 rti
