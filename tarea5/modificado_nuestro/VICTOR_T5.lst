@@ -3,15 +3,18 @@ as12, an absolute assembler for Motorola MCU's, version 1.2h
 
                         ;##############################################################################
                         ;                                 Tarea #5
-                        ;   Fecha: 3 de noviembre del 2020.
-                        ;   Autor: Victor Yeom Song
+                        ;   Fecha: 14 de febrero 2021
+                        ;   Autor: Luis Guillermo Ramírez y Roberto Sánchez
                         ;
-                        ;   Descripcion: este programa simula el conteo y empaquetado de tornillos
-                        ;     en una linea de produccion. En el modo CONFIG se pueden definir
-                        ;     cuantos tornillos incluye cada paquete (entre 12 y 96). En el modo RUN se
-                        ;     simula el conteo de tornillos a una tasa de 4 tornillos por segundo y cuando
-                        ;     la cuenta alcanza el valor programado se aumenta un acumulador de paquetes
-                        ;     y se activa un relay dando asi indicacion de que el paquete esta completo.
+                        ;   Descripcion: El programa en cuestión simula una sistema capaz de tomar como
+                        ;   entrada un valor numérico entre 25 y 85, el cúal cuando se carga con Enter,
+                        ;   le indica al sistema que empiece un conteo desde 0 hasta el valor indicado
+                        ;   aumentando a una frecuencia de 3Hz. Cuando llega al valor máximo se detiene
+                        ;   hasta que se activa la interrupción PH0. Se lleva un conteo de cuantas cuentas
+                        ;   se llevan que se puede reiniciar con el botón PH1. Además los botones PH2 y
+                        ;   PH3 controlan el brillo de la pantalla de 7 segmentos. Con el dip switch 7
+                        ;   se puede mover entre modos de RUN o de Configuración.
+                        ;
                         ;##############################################################################
                         #include registers.inc
                         ; Memory maps and register equates
@@ -640,27 +643,13 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 
                         
                         ;------------------------------------------------------------------------------
-                        ;     Declaracion de las estructuras de datos y vectores de interrupcion
+                        ;                               Estructuras de datos
                         ;------------------------------------------------------------------------------
-                        ;Vectores de interrupcion:
-3e70                                   org $3E70   ;direccion del vector de interrupcion RTI.
-3e70 24 61                             DW RTI_ISR  ;direccion de la subrutina de servicio a interrupcion RTI.
-3e4c                                   org $3E4C   ;direccion del vector de interrupcion por key wakeup del puerto H.
-3e4c 24 75                             DW PTH_ISR  ;direccion de la subrutina de servicio a interrupcion del puerto H.
-3e66                                   org $3E66   ;direccion del vector de interrupcion OC4.
-3e66 24 c3                             DW OC4_ISR  ;direccion de la subrutina de servicio a interrupcion OC4.
-                        
-                        
-                        ;Estructuras de datos:
 1000                                    org $1000
-1000                    Banderas:       ds 1  ;Tiene el formato: X:X:CAMBIO_MODO:MODSEL:X:ARRAY_OK:TCL_LEIDA:TCL_LISTA.
-                                              ;ARRAY_OK indica que se presiono la tecla Enter y que en el arreglo ya se tienen todos los valores leidos.
-                                              ;TCL_LEIDA indica que ya se habia tenido una lectura del teclado y que se estaba esperando a que se diera la supresion de rebotes.
-                                              ;TCL_LISTA indica que luego de la supresion de rebotes se confirmo que si se presiono una tecla.
-                                              ;MODSEL es el selector del modo, asociado al dipswitch PH7. Modo CONFIG en ON (1), modo RUN en OFF (0).
-                                              ;CAMBIO_MODO cuando esta en 1 indica que se dio un cambio de modo y permite refrescar LCD.
-1001 02                 MAX_TCL:        db 2  ;cantidad maximas de teclas que se leen
-1002                    Tecla:          ds 1  ;en esta variable se almacena el valor leido del teclado en la subrutina MUX_TECLADO.
+1000                    Banderas:       ds 1  ;X:X:CAMBIO_MODO:MODSEL:X:ARRAY_OK:TCL_LEIDA:TCL_LISTA.
+                        
+1001 02                 MAX_TCL:        db 2  ;Cantidad de teclas
+1002                    Tecla:          ds 1  ;Valor leido en tecladp
 1003                    Tecla_IN:       ds 1  ;en esta variable se almacena temporalmente el valor de Tecla antes de la supresion de rebotes. Si despues de la supresion se da que Tecla y Tecla_IN son iguales es porque efectivamente se presiono una tecla que debe ser guardada.
 1004                    Cont_Reb:       ds 1  ;es el contador de ticks del RTI, usado para suprimir rebotes.
 1005                    Cont_TCL:       ds 1  ;es el indice utilizado para escribir en el arreglo que guarda las teclas presionadas.
@@ -709,7 +698,8 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 1050 04 28 28 06 0c     iniDsp:         db 4,FUNCTION_SET,FUNCTION_SET,ENTRY_MODE_SET,DISPLAY_ON
                         
 1060                                    org $1060
-                        ;LCD:
+                        
+                        ; Comandos LCD
 0028                    FUNCTION_SET:   equ $28
 0006                    ENTRY_MODE_SET: equ $06
 000c                    DISPLAY_ON:     equ $0C
@@ -719,7 +709,9 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 00c0                    DDRAM_ADDR2:    equ $C0
 0000                    EOM:            equ $00
                         
-1070                                    org $1070 ;mensajes
+                        
+                        ; mensajes a mostrar
+1070                                    org $1070
 1070 4d 4f 44 4f 20 43  CONFIG_MSG1:    FCC "MODO CONFIG"
      4f 4e 46 49 47
 107b 00                                 db EOM
@@ -735,56 +727,53 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
      54 41
 10a3 00                                 db EOM
                         ;------------------------------------------------------------------------------
-                        
-                        
-                        
-                        ;*******************************************************************************
-                        ;                             Programa principal
-                        ;*******************************************************************************
+                        ;                         Vectores de interrupcion:
                         ;------------------------------------------------------------------------------
-                        ;                          Configuracion del hardware
+                        
+3e70                                   org $3E70   ;Interrupcion RTI.
+3e70 24 61                             dw RTI_ISR
+3e4c                                   org $3E4C   ;Interrupcion key wakeup puerto H.
+3e4c 24 75                             dw PTH_ISR
+3e66                                   org $3E66   ;Interrupcion OC4.
+3e66 24 c7                             dw OC4_ISR
+                        
+                        
+                        
+                        ;------------------------------------------------------------------------------
+                        ;                          PROGRAMA PRINCIPAL
                         ;------------------------------------------------------------------------------
 2000                        org $2000
-                        ;Configuracion RTI:
-2000 4c 38 80               BSET CRGINT %10000000 ;se habilita RTI
-2003 18 0b 17 00 3b         MOVB #$17,RTICTL      ;periodo de 1.024 ms
                         
-                        ;Configuracion keywakeup en puerto H:
-2008 1c 02 66 0c            BSET PIEH %00001100   ;se habilita keywakeup en PH2 y PH3. Note que PH0 y PH1 se habilitan en modo RUN. PH7 es por polling.
-200c 1d 02 65 ff            BCLR PPSH $FF   ;las interrupciones deben ocurrir en el flanco decreciente.
+2000 4c 38 80               bset CRGINT %10000000         ;Habilita RTI
+2003 18 0b 17 00 3b         movb #$17,RTICTL              ;periodo 1.024 ms
                         
-                        ;Configuracion PH7 como entrada de proposito general por polling: (Dipswitch)
-2010 1d 02 62 80            BCLR DDRH %10000000
+2008 1c 02 66 0c            bset PIEH %00001100           ;se habilita keywakeup en PH2 y PH3 para brillo, inicialmente entra a modo config
+200c 1d 02 65 ff            bclr PPSH $FF                   ;interrupcionesen flanco decreciente.
+2010 1d 02 62 80            bclr DDRH %10000000
                         
-                        ;Configuracion del teclado en puerto A:
-2014 18 0b f0 00 02         MOVB #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
-2019 4c 0c 01               BSET PUCR %00000001   ;resistencias de pull-up en puerto A. Son necesarias para que haya un 1 en el PAD cuando no se presiona ningun boton del teclado.
+2014 18 0b f0 00 02         movb #$F0,DDRA                ;IO en puerto A
+2019 4c 0c 01               bset PUCR,$01                 ;resistencia de pull-up puerto A.
                         
-                        ;Configuracion del modulo de Timer como Output Compare en el Canal 4:
-201c 4c 46 80               BSET TSCR1 %10000000 ;se habilita modulo de timer.
-201f 4c 4d 03               BSET TSCR2 %00000011 ;prescaler es 2^3 = 8
-2022 4c 40 10               BSET TIOS %00010000 ;se configura el canal 4 como Output Compare.
-2025 4c 4c 10               BSET TIE %00010000 ;se habilita interrupcion del canal 4.
-2028 4d 48 03               BCLR TCTL1 3 ;no es necesario que haya una salida en puerto T. Solo se requiere la interrupcion.
+201c 18 0b ff 00 03         movb #$FF,DDRB ;puerto core B se configura como salida de proposito general. (LEDS y SEGMENTOS)
+2021 18 0b 0f 02 5a         movb #$0F,DDRP ;parte baja de puerto P se configura como salida de proposito general. (~Habilitador Segmentos)
+2026 1c 02 6a 02            bset DDRJ %00000010 ;se configura bit 1 del puerto J como salida de proposito general . (~Habilitador LEDS)
+202a 18 0b ff 00 33         movb #$FF,DDRK ;IO puerto K como salida (LCD)
+202f 18 0b 04 00 09         movb #$04,DDRE ;IO PORTE4 como salida
                         
-                        ;Configuracion de los displays de 7 segmentos y los LEDS.
-202b 18 0b ff 00 03         MOVB #$FF,DDRB ;puerto core B se configura como salida de proposito general. (LEDS y SEGMENTOS)
-2030 18 0b 0f 02 5a         MOVB #$0F,DDRP ;parte baja de puerto P se configura como salida de proposito general. (~Habilitador Segmentos)
-2035 1c 02 6a 02            BSET DDRJ %00000010 ;se configura bit 1 del puerto J como salida de proposito general . (~Habilitador LEDS)
+2034 4c 46 80               bset TSCR1 %10000000 ;Habilita timer.
+2037 4c 4d 03               bset TSCR2 %00000011 ;Preescalador de 8
+203a 4c 40 10               bset TIOS %00010000 ;PT4 como OC
+203d 4c 4c 10               bset TIE %00010000 ;interrupcion del canal 4.
+2040 4d 48 03               bclr TCTL1 3
                         
-                        ;Configuracion de la salida SAL: relay en puerto PORTE4.
-2039 18 0b 04 00 09         MOVB #$04,DDRE ;se configura PORTE4 como salida
                         
-                        ;Configuracion de pantalla LCD
-203e 18 0b ff 00 33         MOVB #$FF,DDRK ;todos los pines del puerto K se configura como salida para controlar la LCD.
-                        
-2043 10 ef                  CLI        ;habilita interrupciones mascarables.
+2043 10 ef                  cli        ;interrupciones mascarables.
                         ;------------------------------------------------------------------------------
                         ;                       Inicializacion de variables
                         ;------------------------------------------------------------------------------
-2045 cf 3b ff               LDS #$3BFF  ;inicializa el stack
-                        ;Teclado matricial:
-2048 18 0b ff 10 02         MOVB #$FF,Tecla
+2045 cf 3b ff               lds #$3BFF  ;Stack
+                        
+2048 18 0b ff 10 02         MOVB #$FF,Tecla            ;config teclado
 204d 18 0b ff 10 03         MOVB #$FF,Tecla_IN
 2052 18 0b ff 10 07         MOVB #$FF,Num_Array
 2057 79 10 04               CLR Cont_Reb
@@ -833,39 +822,40 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                             
                         ;------------------------------------------------------------------------------
 20ca                    MAIN:
-20ca f7 10 0b               		tst CantPQ
-20cd 27 59                  		beq ESTADO_ZERO ;CantPQ=0? Ir a CONFIG
-                            ;Revisamos si modsel==modactual
-20cf 1f 02 61 80 0b                     Brclr PTIH %10000000 MODE0 ; Si modesel 0
+20ca f7 10 0b                                       tst CantPQ
+20cd 27 59                                          beq ESTADO_ZERO ;CantPQ=0? Ir a CONFIG
+                                                    ;Revisamos si modsel==modactual
+20cf 1f 02 61 80 0b                             Brclr PTIH %10000000 MODE0 ; Si modesel 0
                         
-20d4 1e 10 00 08 22     MODE1:		Brset Banderas %00001000 FIN_COMP;No hubo cambio de modo
-20d9 1c 10 00 08                        Bset Banderas %00001000 ;Modo actual en 1
-20dd 20 09                              Bra CAMBIO_MODE ;hubo cambio de modo
+20d4 1e 10 00 08 22     MODE1:                        Brset Banderas %00001000 FIN_COMP;No hubo cambio de modo
+20d9 1c 10 00 08                                Bset Banderas %00001000 ;Modo actual en 1
+20dd 20 09                                      Bra CAMBIO_MODE ;hubo cambio de modo
                         
-20df 1f 10 00 08 17     MODE0:          Brclr Banderas %00001000 FIN_COMP ;No hubo cambio de modo
-20e4 1d 10 00 08                        Bclr Banderas %00001000 ; bandera ModActual en 0
-                                        ;Si llega a este punto, hubo cambio
+20df 1f 10 00 08 17     MODE0:                  Brclr Banderas %00001000 FIN_COMP ;No hubo cambio de modo
+20e4 1d 10 00 08                                Bclr Banderas %00001000 ; bandera ModActual en 0
+                                        ;        Si llega a este punto, hubo cambio
                         
                         
 20e8                    CAMBIO_MODE:
-20e8 1c 10 00 10                        Bset Banderas,%00010000 ;hubo cambio de modo que se ve en la bandera correspondiente
-20ec b6 10 23                           Ldaa CLEAR_LCD ;cuando se cambia de modo, se limpia la pantalla
-20ef 16 21 65                           Jsr Send_Command
-20f2 18 0c 10 20 10 1f                  Movb D2ms,Cont_Delay ;delay  2ms
-20f8 16 21 c5                           Jsr Delay
-20fb 1e 10 00 08 2c     FIN_COMP:	Brset Banderas %00001000 CONFIG_LCD ;Si ModActual es 1 salta a INIT_CONFIG
+20e8 1c 10 00 10                                Bset Banderas,%00010000 ;hubo cambio de modo que se ve en la bandera correspondiente
+20ec b6 10 23                                   ldaa CLEAR_LCD ;cuando se cambia de modo, se limpia la pantalla
+20ef 16 21 65                                   Jsr Send_Command
+20f2 18 0c 10 20 10 1f                                 Movb D2ms,Cont_Delay ;delay  2ms
+20f8 16 21 c5                                          Jsr Delay
+20fb 1e 10 00 08 2c     FIN_COMP:                        Brset Banderas %00001000 CONFIG_LCD ;Si ModActual es 1 salta a INIT_CONFIG
                         
                         
-2100 1e 10 00 08 27     CONFIG_MODE:            Brset Banderas,$08,CONFIG_LCD
+2100 1e 10 00 08 27     CONFIG_MODE:                    Brset Banderas,$08,CONFIG_LCD
                         
-2105 1f 10 00 10 18     CONFIG_RUN:             brclr Banderas,$10,CALL_RUN
                         
-210a 1c 02 66 03                                bset PIEH,$03     ;se habilitan puertos H 0 y 1
-210e 1d 10 00 10                                bclr Banderas,$10  ;CAMBIO DE MOD EN 0
-2112 ce 10 8c                                   ldx #RUN_MSG1
-2115 cd 10 95                                   ldy #RUN_MSG2
-2118 18 0b 01 10 0d                             movb #$01,LEDS ; enciende led pb0
-211d 86 01                                      ldaa #1
+2105 1f 10 00 10 18     CONFIG_RUN:                     brclr Banderas,$10,CALL_RUN
+                        
+210a 1c 02 66 03                                        bset PIEH,$03     ;se habilitan puertos H 0 y 1
+210e 1d 10 00 10                                        bclr Banderas,$10  ;CAMBIO DE MOD EN 0
+2112 ce 10 8c                                           ldx #RUN_MSG1
+2115 cd 10 95                                           ldy #RUN_MSG2
+2118 18 0b 01 10 0d                                     movb #$01,LEDS ; enciende led pb0
+211d 86 01                                              ldaa #1
                                                 ; CONFIGURACION PREVIA AL LCD, en primera iter entra ac?
                         
 211f 16 23 a0                                   jsr CARGAR_LCD
@@ -900,14 +890,12 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
                         
                         
-215f 16 23 34           CALL_CONFIG:            jsr MODO_CONFIG
+215f                    CALL_CONFIG:
+215f 16 23 34                                   jsr MODO_CONFIG
                         
                         
 2162 06 20 ca           volver_main:            jmp MAIN
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina Send_Command: se encarga de enviar al LCD el comando que recibe
-                        ;     por el acumulador A.
                         ;------------------------------------------------------------------------------
 2165 36                 Send_Command:   psha
 2166 84 f0                              anda #$F0
@@ -936,11 +924,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 2194 4d 32 02                           bclr PORTK,$02
 2197 3d                                 rts
-                        ;------------------------------------------------------------------------------
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina Send_Data: se encarga de enviar al LCD el dato que recibe
-                        ;     por el acumulador A.
                         ;------------------------------------------------------------------------------
 2198                    Send_Data:
 2198 36                                 psha ;el dato se recibe en acumulador A y se protege para poder analizar sus nibbles por separado
@@ -964,21 +948,15 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 21c4 3d                                 rts
                         
                         ;------------------------------------------------------------------------------
-                        ;   Subrutina Delay: se mantiene en un loop cerrado hasta que Cont_Delay sea 0.
-                        ;     Cont_Delay es descontado por OC4 a 50 kHz.
-                        ;------------------------------------------------------------------------------
 21c5                    Delay:
-21c5 f7 10 1f                           tst Cont_Delay
+21c5 f7 10 1f                           tst Cont_Delay      ;Espera hasta que OC4 disminuya
 21c8 26 fb                              bne Delay
 21ca 3d                                 rts
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina BCD_BIN: el arreglo Num_Array corresponde a un numero en BCD donde
-                        ;     cada entrada es un digito. Esta subrutina toma este arreglo y calcula en
-                        ;     binario el valor numerico del arreglo. El resultado se almacena en CantPQ.
+                        
                         ;------------------------------------------------------------------------------
 21cb ce 10 07           BCD_BIN:        ldx #Num_Array
-21ce e6 01                              ldab 1,x
+21ce e6 01                              ldab 1,x           revisamos si la unidad es distinta de FF
 21d0 c1 ff                              cmpb #$FF
 21d2 27 05                              beq UNIDAD
 21d4 7b 10 0b                           stab CantPQ
@@ -997,12 +975,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 21ee 3d                                 rts
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina BIN_BCD: esta subrutina realiza la conversion de un numero
-                        ;     binario entre 0 y 99 (inclusivos) a su representacion en BCD. El numero
-                        ;     a convertir se recibe como parametro por el registro A. El resultado en
-                        ;     BCD se devuelve por la variable BCD_L, donde el nibble mas significativo son
-                        ;     las decenas y el menos significativo las unidades.
+                        
                         ;------------------------------------------------------------------------------
 21ef                    BIN_BCD:
                         
@@ -1037,14 +1010,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 2220 3d                         Rts
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina CONV_BIN_BCD: recibe como parametros de entrada las variables BIN1 y
-                        ;     BIN2 y realiza la conversion a BCD de cada una de estas variables. La
-                        ;     conversion de BIN2 solo se da en el modo RUN puesto que es el unico modo
-                        ;     en el que BIN2 tiene valores relevantes. Ademas, luego de la conversion, si
-                        ;     el numero es menor que 10 significa que el display de 7 segmentos utilizado
-                        ;     para las decenas no es necesario que este encendido; en este caso se escribe
-                        ;     $B en el nibble mas significativo de BCD1 y BCD2 para indicarlo.
+                        
                         ;------------------------------------------------------------------------------
 2221                    CONV_BIN_BCD:
 2221 b6 10 12                           Ldaa BIN1
@@ -1068,10 +1034,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2242 7a 10 18           mayor2          Staa BCD2
 2245 3d                                 Rts
                         
-                        ;------------------------------------------------------------------------------
-                        ; Subrutina TAREA_TECLADO: En esta subrutina se da la lectura del teclado. Aqui
-                        ;     se lee el teclado en el puerto A, se suprimen los rebotes, y se maneja la
-                        ;     situacion de tecla retenida.
+                        
                         ;------------------------------------------------------------------------------
 2246                    TAREA_TECLADO:
 2246 b6 10 04                   Ldaa Cont_Reb
@@ -1183,19 +1146,13 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 232e 18 0b ff 10 03     end_formar:     movb #$FF,Tecla_IN
 2333 3d                                 rts
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina MODO_CONFIG: Esta subrutina corresponde a las operaciones necesarias
-                        ;     llevar a cabo la configuracion del sistema. Primero pone el valor adecuado
-                        ;     de los LEDS para que el usuario pueda saber el modo. Posteriormente, con
-                        ;     el uso de TAREA_TECLADO se da la lectura del valor CantPQ. Una vez que el
-                        ;     usuario presiona ENTER se valida que el valor de CantPQ este entre 20 y 90.
-                        ;     Si es asi entonces coloca este valor en BIN1 para que pueda ser desplegado
-                        ;     en los displays 3 y 4. Cuando el valor no es valido se borra CantPQ.
+                        
                         ;------------------------------------------------------------------------------
 2334 18 0c 10 0b 10 12  MODO_CONFIG:            movb CantPQ, BIN1
 233a 1e 10 00 04 04                             brset Banderas,$04,DATA_CHECK
 233f 16 22 46                                   jsr TAREA_TECLADO
 2342 3d                                         rts
+                                                
 2343 16 21 cb           DATA_CHECK:             jsr BCD_BIN
 2346 86 19                                      ldaa #25
 2348 b1 10 0b                                   cmpa CantPQ
@@ -1208,16 +1165,12 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2358 1d 10 0b ff                                bclr CantPQ,$FF
 235c 3d                                         rts
                         
-235d 1d 10 00 04        VALIDO:                        bclr Banderas, $04
+235d                    VALIDO:
+235d 1d 10 00 04                                bclr Banderas, $04
 2361 18 0c 10 0b 10 12                          movb CantPQ,BIN1
 2367 3d                                         rts
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina MODO_RUN: esta subrutina se encarga de simular el conteo de
-                        ;     tornillos a 4Hz por medio del contador de ticks TIMER_CUENTA. Los tornillos
-                        ;     se cuentan en la variable CUENTA y cuando esta alcanza CantPQ se enciende
-                        ;     el relay en el puerto PORTE4, ademas de incrementar AcmPQ para mostrar que
-                        ;     se termino otro paquete. No se permite que AcmPQ supere un valor de 99.
+                        
                         ;------------------------------------------------------------------------------
 2368                    MODO_RUN:
 2368 f7 10 0c                           Tst TIMER_CUENTA ;si timer cuenta es cero
@@ -1240,11 +1193,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2399 18 0c 10 0a 10 13                  MOVB AcmPQ,BIN2
 239f 3d                                 RTS
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina Cargar_LCD: esta subrutina se encarga de enviar a la pantalla LCD
-                        ;     cada caracter, uno por uno, de ambas lineas del LCD. Recibe los parametros
-                        ;     en los registros indice X y Y, que contienen las direcciones de inicio a
-                        ;     los mensajes de las lineas 1 y 2 respectivamente.
+                        
                         ;------------------------------------------------------------------------------
 23a0 b6 10 24           Cargar_LCD:     ldaa ADD_L1
 23a3 16 21 65                           jsr Send_Command
@@ -1278,14 +1227,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 23e6 3d                 TERMINA_LCD:    rts
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina BCD_7SEG: esta subrutina se encarga de tomar los valores en BCD1
-                        ;     y BCD2 y determinar el valor de DISP1, DISP2, DISP3, DISP4. Estas ultimas
-                        ;     cuatro variables son las que indican cuales segmentos de los displays se
-                        ;     deben encender para que se muestre el numero deseado. Sencillamente se
-                        ;     se analiza cada nibble de BCD1 y BCD2, y se toman decisiones a partir de
-                        ;     sus valores. En modo CONFIG (MODSEL=1) se apagan DISP1 y DISP2. Cuando
-                        ;     CPROG=0 se tiene la excepcion que se quieren desplegar ambos ceros
+                        
                         ;------------------------------------------------------------------------------
 23e7 b6 10 0b           BCD_7SEG:       ldaa CantPQ
 23ea 81 00                              cmpa #0
@@ -1342,152 +1284,140 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
                         
                         
+                        
                         ;------------------------------------------------------------------------------
-                        ;   Subrutina de servicio a interrupcion RTI: Esta subrutina descuenta contadores
-                        ;     siempre y cuando no sean cero. Los ticks del RTI duran 1.024 ms, por lo
-                        ;     que si se cargan variables con X valor se pueden contar aproximadamente
-                        ;     X milisegundos. Cont_Reb tiene un valor maximo de 10; se utiliza para
-                        ;     suprimir rebotes contando ~10ms. TIMER_CUENTA tiene un valor maximo de
-                        ;     VMAX (245), y cuenta ~250ms; se utiliza para simular la cuenta de tornillos
-                        ;     a 4 Hz.
-                        ;------------------------------------------------------------------------------
-2461                    RTI_ISR:
-2461 4c 37 80                           bset CRGFLG %10000000 ;se limpia la bandera de interrupcion RTI
-2464 f7 10 04                           tst Cont_Reb ;se ve si el contador de rebotes llego a 0
-2467 27 03                              beq CHECK_TIMER;si no, se pasa a revisar el timer
-2469 73 10 04                           dec Cont_Reb
-246c                    CHECK_TIMER:
-246c f7 10 0c                           tst TIMER_CUENTA ;se revisa si el timer ha llegado a 0
-246f 27 03                              beq FIN_RTI
-2471 73 10 0c                           dec TIMER_CUENTA
+2461 4c 37 80           RTI_ISR:        bset CRGFLG %10000000 ;limpiamos la bandera de interrupcion RTI
+2464 f7 10 0c                           tst TIMER_CUENTA
+2467 27 03                              beq REBOTES  ;Si TIMER CUENTA es cero, pasamos a revisar los rebotes
+2469 73 10 0c                           dec TIMER_CUENTA ;Solo se decrementa si TIMER CUENTA no es cero
+                        
+246c f7 10 04           REBOTES:	tst Cont_Reb
+246f 27 03                              beq FIN_RTI;si llegaron los rebotes a 0, se termina la rubrutina
+2471 73 10 04                           dec Cont_Reb ;Decrementamos el contador de rebotes si aun no ha llegado a cero
+                        
 2474                    FIN_RTI:
 2474 0b                                 rti
                         
-                        ;------------------------------------------------------------------------------
-                        ;   Subrutina de servicio a interrupcion keywakeup en puerto H: revisa las 4
-                        ;     posibles fuentes de interrupcion PH0, PH1, PH2, PH3. La primer borra el
-                        ;     valor de CUENTA, la segunda borra el valor de AcmPQ, la tercera disminuye
-                        ;     el brillo en un 5%, la cuarta aumenta el brillo en un 5%.
-                        ;------------------------------------------------------------------------------
-2475                    PTH_ISR:
-2475 1e 10 00 08 20                     BRSET Banderas %00001000 NO_RUN ;las interrupciones PTH
-247a 1f 02 67 01 0f                     BRCLR PIFH $01 PTH1 ;si es 1, se revisa por la siguiente fuente de interrupcion
-247f 1c 02 67 01                        BSET PIFH $01 ;se apaga la bandera de la fuente de interrupcion
-2483 4c 38 80                           BSET CRGINT %10000000 ;Habilita interrupciones de RTI
-2486 18 0b 00 00 08                     MOVB #$00,PORTE ;se apaga el relay
-248b 79 10 09                           CLR CUENTA ;se reinicia la cuenta
-248e                    PTH1:
-248e 1f 02 67 02 07                     BRCLR PIFH $02 NO_RUN ;si es 1, se revisa por la siguiente fuente de interrupcion
-2493 1c 02 67 02                        BSET PIFH $02 ;se apaga la bandera de la fuente de interrupcion
-2497 79 10 0a                           CLR AcmPQ ;se limpia el acumulador
-249a                    NO_RUN:
-249a b6 10 0e                   	LDAA BRILLO
-249d c6 05                              LDAB #5
-249f 1f 02 67 04 0c                     BRCLR PIFH $04 PTH3 ;si es 1, se revisa por la siguiente fuente de interrupcion
-24a4 1c 02 67 04                        BSET PIFH $04 ;se apaga la bandera de la fuente de interrupcion
-24a8 97                                 TSTA
-24a9 27 05                              BEQ PTH3 ;si BRILLO es 0, no se le puede restar 5 y se revisa por la siguiente interrupcion
-24ab 18 16                              SBA
-24ad 7a 10 0e                           STAA BRILLO ;se le resta 5 a BRILLO
-24b0                    PTH3:
-24b0 1f 02 67 08 0d                     BRCLR PIFH $08 FIN_PTH ;si es 1, se termina la subrutina
-24b5 1c 02 67 08                        BSET PIFH $08 ;se apaga la bandera de la fuente de interrupcion
-24b9 81 64                              CMPA #100
-24bb 27 05                              BEQ FIN_PTH ;si BRILLO es 100, no se le puede sumar 5 y se termina la rutina
-24bd 18 06                              ABA
-24bf 7a 10 0e                           STAA BRILLO ;se le suma 5 a BRILLO
-24c2                    FIN_PTH:
-24c2 0b                                 RTI ;termina la rutina de atencion a interrupciones
+                        
                         
                         ;------------------------------------------------------------------------------
-                        ;   Subrutina de servicio a interrupcion por output compare en el canal 4:
-                        ;     Descuenta Cont_Delay, refresca cada 100 ms (5000ticks) los valores de
-                        ;     DISP1-DISP4, multiplexa el bus del puerto B para mostrar informacion en
-                        ;     los displays de 7 segmentos y los LEDS, y todo con un ciclo de trabajo
-                        ;     variable que depende de BRILLO.
+2475 1e 10 00 08 1e     PTH_ISR:        Brset Banderas,$08,PH_CONFIG ;Si esa en modo config no toma en cuenta PH0 Y PH1
+247a 1f 02 67 01 0d                     Brclr PIFH $01 PTH1 ;si es 1, se revisa por la siguiente fuente de interrupcion
+                                        ;CASO DE PH0
+247f 1c 02 67 01        		Bset PIFH $01 ;apagamos las interrupciones de PH0
+2483 79 10 09           		Clr CUENTA ;borramos cuenta
+2486 4c 38 80                           Bset CRGINT %10000000 ;Habilita interrupciones de RTI
+2489 79 00 08                           Clr PORTE ;apagamos el relay
+                        
+248c                    PTH1:
+248c 1f 02 67 02 07                     BRCLR PIFH $02 PH_CONFIG ;Si no tiene PH1, revisa PH2
+                                        ;Caso de PH1
+2491 1c 02 67 02        		BSET PIFH $02 ;se apaga la bandera de la fuente de interrupcion
+2495 79 10 0a                           CLR AcmPQ ;se limpia el acumulador
+2498                    PH_CONFIG:
+2498 1f 02 67 04 11                     Brclr PIFH $04 PTH3 ;No hay PH3, revisa ph4
+249d 1c 02 67 04                        Bset PIFH $04 ;se apaga la bandera de la fuente de interrupcion
+24a1 f7 10 0e                           Tst BRILLO
+24a4 27 08                              Beq PTH3 ;Caso de brillo minimo, ya no se puede restar
+24a6 b6 10 0e                           Ldaa BRILLO
+24a9 80 05                              Suba #5
+24ab 7a 10 0e                           Staa BRILLO ;se le resta 5 a BRILLO
+24ae                    PTH3:
+24ae 1f 02 67 08 13                     Brclr PIFH $08 FIN_PTH ;no hay ph4, termina de revisar
+24b3 1c 02 67 08                        Bset PIFH $08 ;se apaga la fuente de interrupcion
+24b7 86 64                              Ldaa #100
+24b9 b1 10 0e                           Cmpa BRILLO
+24bc 27 08                              Beq FIN_PTH ;Maximo brillo posible, termina la subrutina
+24be b6 10 0e                           Ldaa BRILLO
+24c1 8b 05                              Adda #5
+24c3 7a 10 0e                           Staa BRILLO ;se le suma 5 a BRILLO
+24c6                    FIN_PTH:
+24c6 0b                                 Rti ;termina la subrutina
+                        
+                        
                         ;------------------------------------------------------------------------------
                         
                         
-24c3                    OC4_ISR:
-24c3 b6 10 1f                           ldaa Cont_Delay
-24c6 81 00                              cmpa #0
-24c8 27 03                              beq CONTROL_PANTALLA
-24ca 73 10 1f                           dec Cont_Delay
+24c7                    OC4_ISR:
+24c7 b6 10 1f                           ldaa Cont_Delay
+24ca 81 00                              cmpa #0
+24cc 27 03                              beq CONTROL_PANTALLA
+24ce 73 10 1f                           dec Cont_Delay
                                         
-24cd                    CONTROL_PANTALLA:
-24cd fe 10 1d                           ldx CONT_7SEG
-24d0 09                                	dex
-24d1 7e 10 1d                         	stx CONT_7SEG
-24d4 8e 00 00                          	cpx #0
-24d7 26 0c                             	bne CONTADOR_DISP
-24d9 18 03 13 88 10 1d                 	movw #5000,CONT_7SEG
-24df 16 22 21                          	jsr CONV_BIN_BCD
-24e2 16 23 e7                          	jsr BCD_7SEG
-                                       	
-24e5                    CONTADOR_DISP:
-24e5 b6 10 10                           ldaa CONT_TICKS
-24e8 81 64                              cmpa #100
-24ea 26 11                              bne MUX
-24ec 87                                 clra
-24ed 7a 10 10                           staa CONT_TICKS
-24f0 72 10 0f                           inc CONT_DIG
-24f3 f6 10 0f                           ldab CONT_DIG
-24f6 c1 05                              cmpb #5
-24f8 26 03                              bne MUX
-24fa 79 10 0f                           clr CONT_DIG
-24fd                    MUX:
-24fd f7 10 10                           tst CONT_TICKS
-2500 26 5c                              bne DUTY_CYCLE
+24d1                    CONTROL_PANTALLA:
+24d1 fe 10 1d                           ldx CONT_7SEG
+24d4 09                                        dex
+24d5 7e 10 1d                                 stx CONT_7SEG
+24d8 8e 00 00                                  cpx #0
+24db 26 0c                                     bne CONTADOR_DISP
+24dd 18 03 13 88 10 1d                         movw #5000,CONT_7SEG
+24e3 16 22 21                                  jsr CONV_BIN_BCD
+24e6 16 23 e7                                  jsr BCD_7SEG
+                                               
+24e9                    CONTADOR_DISP:
+24e9 b6 10 10                           ldaa CONT_TICKS
+24ec 81 64                              cmpa #100
+24ee 26 11                              bne MUX
+24f0 87                                 clra
+24f1 7a 10 10                           staa CONT_TICKS
+24f4 72 10 0f                           inc CONT_DIG
+24f7 f6 10 0f                           ldab CONT_DIG
+24fa c1 05                              cmpb #5
+24fc 26 03                              bne MUX
+24fe 79 10 0f                           clr CONT_DIG
+2501                    MUX:
+2501 f7 10 10                           tst CONT_TICKS
+2504 26 5c                              bne DUTY_CYCLE
                         
-2502 18 0b 02 02 68                     movb #$02,PTJ
-2507 18 0b ff 02 58                     movb #$FF,PTP
+2506 18 0b 02 02 68                     movb #$02,PTJ
+250b 18 0b ff 02 58                     movb #$FF,PTP
                         
-250c f6 10 0f                           ldab CONT_DIG
-250f c1 00                              cmpb #0
-2511 27 19                              beq DIG0
-2513 c1 01                              cmpb #1
-2515 27 22                              beq DIG1
-2517 c1 02                              cmpb #2
-2519 27 2b                              beq DIG2
-251b c1 03                              cmpb #3
-251d 27 34                              beq DIG3
+2510 f6 10 0f                           ldab CONT_DIG
+2513 c1 00                              cmpb #0
+2515 27 19                              beq DIG0
+2517 c1 01                              cmpb #1
+2519 27 22                              beq DIG1
+251b c1 02                              cmpb #2
+251d 27 2b                              beq DIG2
+251f c1 03                              cmpb #3
+2521 27 34                              beq DIG3
                         
-251f 18 0b 00 02 68                     movb #$00,PTJ
-2524 18 0c 10 0d 00 01                  movb LEDS,PORTB
-252a 20 32                              bra DUTY_CYCLE
-252c                    DIG0:
-252c 18 0b f7 02 58                     movb #$F7,PTP ;se habilita unicamente el display 4
-2531 18 0c 10 1c 00 01                  MOVB DISP4,PORTB ;se coloca en el puerto B el valor del display 4
-2537 20 25                              BRA DUTY_CYCLE
-2539                    DIG1:
-2539 18 0b fb 02 58                     MOVB #$FB,PTP ;se habilita unicamente el display 3
-253e 18 0c 10 1b 00 01                  MOVB DISP3,PORTB ;se coloca en el puerto B el valor del display 3
-2544 20 18                              BRA DUTY_CYCLE
-2546                    DIG2:
-2546 18 0b fd 02 58                     MOVB #$FD,PTP ;se habilita unicamente el display 2
-254b 18 0c 10 1a 00 01                  MOVB DISP2,PORTB ;se coloca en el puerto B el valor del display 2
-2551 20 0b                              BRA DUTY_CYCLE
-2553                    DIG3:
-2553 18 0b fe 02 58                     MOVB #$FE,PTP ;se habilita unicamente el display 1
-2558 18 0c 10 19 00 01                  MOVB DISP1,PORTB ;se coloca en el puerto B el valor del display 1
-255e                    DUTY_CYCLE:
-255e 86 64                              ldaa #100
-2560 b0 10 0e                           suba BRILLO
-2563 7a 10 11                           staa DT
+2523 18 0b 00 02 68                     movb #$00,PTJ
+2528 18 0c 10 0d 00 01                  movb LEDS,PORTB
+252e 20 32                              bra DUTY_CYCLE
+2530                    DIG0:
+2530 18 0b f7 02 58                     movb #$F7,PTP ;se habilita unicamente el display 4
+2535 18 0c 10 1c 00 01                  MOVB DISP4,PORTB ;se coloca en el puerto B el valor del display 4
+253b 20 25                              BRA DUTY_CYCLE
+253d                    DIG1:
+253d 18 0b fb 02 58                     MOVB #$FB,PTP ;se habilita unicamente el display 3
+2542 18 0c 10 1b 00 01                  MOVB DISP3,PORTB ;se coloca en el puerto B el valor del display 3
+2548 20 18                              BRA DUTY_CYCLE
+254a                    DIG2:
+254a 18 0b fd 02 58                     MOVB #$FD,PTP ;se habilita unicamente el display 2
+254f 18 0c 10 1a 00 01                  MOVB DISP2,PORTB ;se coloca en el puerto B el valor del display 2
+2555 20 0b                              BRA DUTY_CYCLE
+2557                    DIG3:
+2557 18 0b fe 02 58                     MOVB #$FE,PTP ;se habilita unicamente el display 1
+255c 18 0c 10 19 00 01                  MOVB DISP1,PORTB ;se coloca en el puerto B el valor del display 1
+2562                    DUTY_CYCLE:
+2562 86 64                              ldaa #100
+2564 b0 10 0e                           suba BRILLO
+2567 7a 10 11                           staa DT
                         
-2566 b6 10 10               		ldaa CONT_TICKS
-2569 b1 10 11                           cmpa DT
-256c 26 0a                              bne FIN_OC4
-256e 18 0b ff 02 58                     movb #$FF,PTP ;se deshabilitan displays de 7 segmentos
-2573 18 0b 02 02 68                     movb #$02,PTJ ;se deshabilitan los LEDS
-2578                    FIN_OC4:
-2578 72 10 10                           inc CONT_TICKS
-257b 4c 4e 10                           bset TFLG1 %00010000 ;se reinicia la bandera de interrupcion
-257e dc 44                              ldd TCNT ;se carga el valor actual de TCNT para reajustar el output compare
-2580 c3 00 3c                           addd #60 ;60 cuentas equivalen 50kHz con prescalador=8
-2583 5c 58                              std TC4 ;se actualiza el nuevo valor a alcanzar.
-2585 0b                                 rti
+256a b6 10 10                               ldaa CONT_TICKS
+256d b1 10 11                           cmpa DT
+2570 26 0a                              bne FIN_OC4
+2572 18 0b ff 02 58                     movb #$FF,PTP ;se deshabilitan displays de 7 segmentos
+2577 18 0b 02 02 68                     movb #$02,PTJ ;se deshabilitan los LEDS
+257c                    FIN_OC4:
+257c 72 10 10                           inc CONT_TICKS
+257f 4c 4e 10                           bset TFLG1 %00010000 ;se reinicia la bandera de interrupcion
+2582 dc 44                              ldd TCNT ;se carga el valor actual de TCNT para reajustar el output compare
+2584 c3 00 3c                           addd #60 ;60 cuentas equivalen 50kHz con prescalador=8
+2587 5c 58                              std TC4 ;se actualiza el nuevo valor a alcanzar.
+2589 0b                                 rti
 
-Executed: Sat Feb 13 21:43:23 2021
-Total cycles: 1581, Total bytes: 1507
+Executed: Sun Feb 14 00:09:44 2021
+Total cycles: 1590, Total bytes: 1511
 Total errors: 0, Total warnings: 0

@@ -231,7 +231,6 @@ cargar_linea2 23c3
 caso_b     2427
 caso_b_disp1 244f
 cforc      0041
-check_timer 246c
 clear_display 0001
 clear_lcd  1023
 clksel     0039
@@ -249,8 +248,8 @@ cont_dig   100f
 cont_reb   1004
 cont_tcl   1005
 cont_ticks 1010
-contador_disp 24e5
-control_pantalla 24cd
+contador_disp 24e9
+control_pantalla 24d1
 conv_bin_bcd 2221
 copctl     003c
 crgflg     0037
@@ -281,10 +280,10 @@ ddrt       0242
 decena     21e0
 delay      21c5
 delete     2289
-dig0       252c
-dig1       2539
-dig2       2546
-dig3       2553
+dig0       2530
+dig1       253d
+dig2       254a
+dig3       2557
 disp1      1019
 disp2      101a
 disp3      101b
@@ -300,7 +299,7 @@ dlcbsvr    00e9
 dlcscr     00ee
 dlyct      0069
 dt         1011
-duty_cycle 255e
+duty_cycle 2562
 ebictl     000e
 eclkdiv    0110
 ecmd       0116
@@ -317,8 +316,8 @@ fclkdiv    0100
 fcmd       0106
 fcnfg      0103
 fin_comp   20fb
-fin_oc4    2578
-fin_pth    24c2
+fin_oc4    257c
+fin_pth    24c6
 fin_rti    2474
 fin_run    2393
 forbyp     003d
@@ -376,13 +375,12 @@ modo_run   2368
 modrr      0257
 mtst0      0014
 mtst1      0017
-mux        24fd
+mux        2501
 mux_teclado 2298
-no_run     249a
 not_zero   2406
 notproc    2278
 num_array  1007
-oc4_isr    24c3
+oc4_isr    24c7
 oc7d       0043
 oc7m       0042
 out2hex    ee9c
@@ -409,6 +407,7 @@ perm       0254
 perp       025c
 pers       024c
 pert       0244
+ph_config  2498
 pieh       0266
 piej       026e
 piep       025e
@@ -436,8 +435,8 @@ primer_val_1 230e
 printf     ee88
 prstart    2000
 pth        0260
-pth1       248e
-pth3       24b0
+pth1       248c
+pth3       24ae
 pth_isr    2475
 ptih       0261
 ptij       0269
@@ -499,6 +498,7 @@ rdrp       025b
 rdrs       024b
 rdrt       0243
 readmem    eeae
+rebotes    246c
 refdv      0035
 regbase    0000
 retornar   2297
