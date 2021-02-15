@@ -1,16 +1,16 @@
 ;##############################################################################
 ;                                 Tarea #5
 ;   Fecha: 14 de febrero 2021
-;   Autor: Luis Guillermo RamÌrez y Roberto S·nchez
+;   Autor: Luis Guillermo Ram√≠rez y Roberto S√°nchez
 ;
-;   Descripcion: El programa en cuestiÛn simula una sistema capaz de tomar como
-;   entrada un valor numÈrico entre 25 y 85, el c˙al cuando se carga con Enter,
+;   Descripcion: El programa en cuesti√≥n simula una sistema capaz de tomar como
+;   entrada un valor num√©rico entre 25 y 85, el c√∫al cuando se carga con Enter,
 ;   le indica al sistema que empiece un conteo desde 0 hasta el valor indicado
-;   aumentando a una frecuencia de 3Hz. Cuando llega al valor m·ximo se detiene
-;   hasta que se activa la interrupciÛn PH0. Se lleva un conteo de cuantas cuentas
-;   se llevan que se puede reiniciar con el botÛn PH1. Adem·s los botones PH2 y
+;   aumentando a una frecuencia de 3Hz. Cuando llega al valor m√°ximo se detiene
+;   hasta que se activa la interrupci√≥n PH0. Se lleva un conteo de cuantas cuentas
+;   se llevan que se puede reiniciar con el bot√≥n PH1. Adem√°s los botones PH2 y
 ;   PH3 controlan el brillo de la pantalla de 7 segmentos. Con el dip switch 7
-;   se puede mover entre modos de RUN o de ConfiguraciÛn.
+;   se puede mover entre modos de RUN o de Configuraci√≥n.
 ;
 ;##############################################################################
 #include registers.inc
@@ -394,25 +394,24 @@ men301
                 Rts
 
 
-;------------------------------------------------------------------------------
+;------------------------------------------------------------------------------                
 CONV_BIN_BCD:
                 Ldaa BIN1
-                Jsr BIN_BCD
+                Jsr BIN_BCD ;Pasamos BIN1 a BCD
                 Ldaa BCD_L
                 Cmpa #10
                 Bhs mayor1
-                Adda #$B0
+                Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
 
-mayor1          Staa BCD1
-
+mayor1          Staa BCD1 ;Guardamos el valor en BCD1
                 Ldaa BIN2
-                Jsr BIN_BCD
+                Jsr BIN_BCD ;Pasamos BIN2 a BCD
                 Ldaa BCD_L
                 Cmpa #10
                 Bhs mayor2
-                Adda #$B0
+                Adda #$B0 ;Si es de un solo digito, agrega B en decenas
 
-mayor2          Staa BCD2
+mayor2          Staa BCD2 ;Guardamos en BCD2
                 Rts
 
 
@@ -583,7 +582,7 @@ Fin_Run:
 
 ;------------------------------------------------------------------------------
 Cargar_LCD:     ldaa ADD_L1                           ;inicio de linea
-                jsr Send_Command                ;envÌa comando
+                jsr Send_Command                ;env√≠a comando
                 movb D40uS,Cont_Delay           ;delay
                 jsr Delay
 
@@ -631,8 +630,8 @@ NOT_ZERO:       ldx #SEGMENT                    ; carga dir segmentos
                 movb a,x,DISP4                  ; usamos direccionamiento indexado por acumulador usando valor en parte alta
                 ldaa #$F0                       ; mascara parte baja
                 anda BCD1
-                cmpa #$B0                       ; caso de digito vacÌo
-                beq caso_B                      ; movemos el nibble m·s alto hacia la derecha
+                cmpa #$B0                       ; caso de digito vac√≠o
+                beq caso_B                      ; movemos el nibble m√°s alto hacia la derecha
                 lsra
                 lsra
                 lsra
@@ -659,7 +658,7 @@ CUENTA_ACMPQ:                                   ;Cantidad de paquetes en BCD2
                 movb a,x,DISP1
                 bra return_7seg
 
-caso_B_disp1:                                         ;No hay paquetes completos a˙n
+caso_B_disp1:                                         ;No hay paquetes completos a√∫n
                 movb #$00,DISP1
                 bra return_7seg
 
