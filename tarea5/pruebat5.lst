@@ -1441,6 +1441,6 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2585 5c 58                              std TC4                         ;actualiza el nuevo valor a alcanzar.
 2587 0b                                 rti
 
-Executed: Sun Feb 14 13:36:32 2021
+Executed: Sun Feb 14 18:03:33 2021
 Total cycles: 1589, Total bytes: 1509
 Total errors: 0, Total warnings: 0
