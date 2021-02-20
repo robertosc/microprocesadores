@@ -1,7 +1,13 @@
 
 as12, an absolute assembler for Motorola MCU's, version 1.2h
 
-                        
+                        ;##############################################################################
+                        ;                                 Tarea #6
+                        ;   Fecha: 21 de enero del 2021
+                        ;   Autor: Roberto Sánchez y Luis guillermo Ramírez
+                        ;
+                        ;   Descripcion:
+                        ;##############################################################################
                         #include registers.inc
                         ; Memory maps and register equates
                         ; Choose one of DBUG12MAP (normal operation under DBUG12)
@@ -628,37 +634,39 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         #endinclude
 
                         
+                        
 0000                    EOM:            EQU $00 ;end of message
 000d                    CR:             EQU $0D ;carriage return
 000a                    LF:             EQU $0A ;line feed
 000c                    NP:             EQU $0C ;new page
 001a                    SUB:            EQU $1A ;control substitute
-                        
-                        ;Definicion de vectores:
-ffd2                                    Org $FFD2
-ffd2 21 0c                              Dw ATD0_ISR ;direccion de la subrutina de servicio a interrupcion ATD0.
-                                        ;Org $FFD4
-                                        ;Dw SCI_ISR ;direccion de la subrutina de servicio a interrupcion SCI1.
-                                        ;Org $FFF0
-                                        ;Dw RTI_ISR  ;direccion de la subrutina de servicio a interrupcion RTI.
+                        ;------------------------------------------------------------------------------
+                        ;     Declaracion de las estructuras de datos y vectores de interrupcion
+                        ;------------------------------------------------------------------------------
+                        ;Vectores de interrupcion:
+ffd2                                    ORG $FFD2
+ffd2 21 34                              DW ATD0_ISR ;direccion de la subrutina de servicio a interrupcion ATD0.
+ffd4                                    ORG $FFD4
+ffd4 21 71                              DW SCI_ISR ;direccion de la subrutina de servicio a interrupcion SCI1.
+fff0                                    ORG $FFF0
+fff0 21 4e                              DW RTI_ISR  ;direccion de la subrutina de servicio a interrupcion RTI.
                         
                         ;Estructuras de datos:
-1010                                   Org $1010
+1010                                    ORG $1010
+1010                    NIVEL_PROM:     DS 2 ;almacena el promedio de las 6 mediciones a 10 bits del ATD.
+1012                    NIVEL:          DS 1 ;almacena el valor redondeado a 8 bits de NIVEL_PROM en metros.
+1013                    VOLUMEN:        DS 1 ;almacena el volumen del tanque en metros cubicos (m3).
+1014                    CONT_RTI:       DS 1 ;permite generar la cadencia de 1 seg en el RTI para la transmision.
                         
-1010                    NIVEL_PROM: Ds 2
-1012                    BCD_H:          ds 1
-1013                    BCD_L:          ds 1
-1014                    LOW:            ds 1
-1015                    VOLUMEN:        ds 1
-1016                    NIVEL:          ds 1
-1017                    BANDERAS:       ds 1
-                        ;vict
-1018                    CONT_RTI:       ds 1
-1019                    PRINT_PTR:      DS 2
+1015                    BCD_H:          DS 1 ;miles y centenas en BCD
+1016                    BCD_L:          DS 1 ;decenas y unidades en BCD
+1017                    LOW:            DS 1 ;variable temporal
+1018                    PRINT_PTR:      DS 2 ;con este puntero se maneja la impresion caracter por caracter.
+101a                    BANDERAS:          DS 1 ; X:X:X:X:X:MSG_SEL:MSG:DONE
                         
                         ;Mensajes:
-101b 1a                 MENSAJE:        Db SUB
-101c 20 20 20 20 20 20                  Fcc "                         UNIVERSIDAD DE COSTA RICA"
+101b 1a                 MENSAJE:        DB SUB
+101c 20 20 20 20 20 20                  FCC "                         UNIVERSIDAD DE COSTA RICA"
      20 20 20 20 20 20
      20 20 20 20 20 20
      20 20 20 20 20 20
@@ -667,8 +675,8 @@ ffd2 21 0c                              Dw ATD0_ISR ;direccion de la subrutina d
      20 44 45 20 43 4f
      53 54 41 20 52 49
      43 41
-104e 0d 0a                              Db CR,LF
-1050 20 20 20 20 20 20                  Fcc "                      ESCUELA DE INGENIERIA ELECTRICA"
+104e 0d 0a                              DB CR,LF
+1050 20 20 20 20 20 20                  FCC "                      ESCUELA DE INGENIERIA ELECTRICA"
      20 20 20 20 20 20
      20 20 20 20 20 20
      20 20 20 20 45 53
@@ -677,8 +685,8 @@ ffd2 21 0c                              Dw ATD0_ISR ;direccion de la subrutina d
      45 4e 49 45 52 49
      41 20 45 4c 45 43
      54 52 49 43 41
-1085 0d 0a                              Db CR,LF
-1087 20 20 20 20 20 20                  Fcc "                             MICROPROCESADORES"
+1085 0d 0a                              DB CR,LF
+1087 20 20 20 20 20 20                  FCC "                             MICROPROCESADORES"
      20 20 20 20 20 20
      20 20 20 20 20 20
      20 20 20 20 20 20
@@ -686,31 +694,30 @@ ffd2 21 0c                              Dw ATD0_ISR ;direccion de la subrutina d
      49 43 52 4f 50 52
      4f 43 45 53 41 44
      4f 52 45 53
-10b5 0d 0a                              Db CR,LF
-10b7 20 20 20 20 20 20                  Fcc "                                   IE0623"
+10b5 0d 0a                              DB CR,LF
+10b7 20 20 20 20 20 20                  FCC "                                   IE0623"
      20 20 20 20 20 20
      20 20 20 20 20 20
      20 20 20 20 20 20
      20 20 20 20 20 20
      20 20 20 20 20 49
      45 30 36 32 33
-10e0 0d 0a 0d 0a                        Db CR,LF,CR,LF
-10e4 20 20 20 20 20 20                  Fcc "                            VOLUMEN CALCULADO: "
+10e0 0d 0a 0d 0a                        DB CR,LF,CR,LF
+10e4 20 20 20 20 20 20                  FCC "                    VOLUMEN CALCULADO: "
      20 20 20 20 20 20
      20 20 20 20 20 20
-     20 20 20 20 20 20
-     20 20 20 20 56 4f
-     4c 55 4d 45 4e 20
-     43 41 4c 43 55 4c
-     41 44 4f 3a 20
-1113                    CENTENAS:       Ds 1
-1114                    DECENAS:        Ds 1
-1115                    UNIDADES:       Ds 1
-1116 20 6d 33 2e                        Fcc " m3."
-111a 0d 0a 00                           Db CR,LF,EOM
+     20 20 56 4f 4c 55
+     4d 45 4e 20 43 41
+     4c 43 55 4c 41 44
+     4f 3a 20
+110b                    CENTENAS:       DS 1
+110c                    DECENAS:        DS 1
+110d                    UNIDADES:       DS 1
+110e 20 6d 33 2e                        FCC " m3."
+1112 0d 0a 00                           DB CR,LF,EOM
                         
-111d 0d 0a 0d 0a        MSG_ALARM:      Db CR,LF,CR,LF
-1121 20 20 20 20 20 20                  Fcc "                    Alarma: El Nivel esta Bajo."
+1115 0d 0a 0d 0a        ALARMA_BAJO:      DB CR,LF,CR,LF
+1119 20 20 20 20 20 20                  FCC "                    Alarma: El Nivel esta Bajo."
      20 20 20 20 20 20
      20 20 20 20 20 20
      20 20 41 6c 61 72
@@ -718,9 +725,9 @@ ffd2 21 0c                              Dw ATD0_ISR ;direccion de la subrutina d
      20 4e 69 76 65 6c
      20 65 73 74 61 20
      42 61 6a 6f 2e
-1150 00                                 Db EOM
+1148 00                                 DB EOM
                         
-1151 20 20 20 20 20 20  MSG_FULL:       Fcc "                    Tanque vaciando, Bomba Apagada."
+1149 20 20 20 20 20 20  FULL:       FCC "                    Tanque vaciando, Bomba Apagada."
      20 20 20 20 20 20
      20 20 20 20 20 20
      20 20 54 61 6e 71
@@ -729,167 +736,188 @@ ffd2 21 0c                              Dw ATD0_ISR ;direccion de la subrutina d
      20 42 6f 6d 62 61
      20 41 70 61 67 61
      64 61 2e
-1184 00                                 Db EOM
+117c 00                                 DB EOM
                         ;*******************************************************************************
                         ;                             Programa principal
                         ;*******************************************************************************
                         ;------------------------------------------------------------------------------
                         ;                          Configuracion del hardware
                         ;------------------------------------------------------------------------------
-2000                        Org $2000
-                            
-                            
-                            ;Configuracion del ATD0:
-2000 18 0b c2 00 82         Movb #$C2,ATD0CTL2 ;habilita convertidor ATD0, borrado rapido de banderas y las interrupciones.
-2005 86 a0                  Ldaa #160
-2007                    CONFIG_ATD:
-2007 04 30 fd               Dbne A,CONFIG_ATD ;3ciclosCLK * 160cuentas * (1/48 MHz) = 10 us. Tiempo requerido para que inicie el ATD.
-200a 18 0b 30 00 83         Movb #$30,ATD0CTL3 ;ciclo de 6 conversiones
-200f 18 0b 10 00 84         Movb #$10,ATD0CTL4 ;conversion a 10 bits, tiempo final de muestreo es 2 periodos, f_sample = 700 kHz (PRS~16)
-2014 18 0b 80 00 85         Movb #$80,ATD0CTL5 ;justifica a la derecha. Sin signo. No multiplexacion. Canal 7 es el del pot. Escritura inicia ciclo.
-                            
+2000                        ORG $2000
+                        ;Configuracion de la salida SAL: LED en puerto PORTB0.
+2000 18 0b 01 00 03         MOVB #$01,DDRB ;se configura PORTB0 como salida
+2005 1c 02 6a 02            bset DDRJ,$02
                         
+                        ;Configuracion del ATD0:
+2009 18 0b c2 00 82         MOVB #$C2,ATD0CTL2 ;habilita convertidor ATD0, borrado rapido de banderas y las interrupciones.
+200e 86 a0                  LDAA #160
+2010                    CONFIG_ATD:
+2010 04 30 fd               DBNE A,CONFIG_ATD ;3ciclosCLK * 160cuentas * (1/48 MHz) = 10 us. Tiempo requerido para que inicie el ATD.
+2013 18 0b 30 00 83         MOVB #$30,ATD0CTL3 ;ciclo de 6 conversiones
+2018 18 0b 10 00 84         MOVB #$10,ATD0CTL4 ;conversion a 10 bits, tiempo final de muestreo es 2 periodos, f_sample = 700 kHz (PRS~16)
+201d 18 0b 80 00 85         MOVB #$80,ATD0CTL5 ;justifica a la derecha. Sin signo. No multiplexacion. Canal 7 es el del pot. Escritura inicia ciclo.
                         
+                        ;Configuracion del RTI:
+2022 18 0b 54 00 3b         MOVB #$54,RTICTL
+2027 4c 38 80               BSET CRGINT %10000000
                         
-2019 10 ef                  Cli
+                        ;Configuracion del Serial Communication Interface (SCI1):
+202a 18 03 00 27 00 d0      MOVW #39,SC1BDH ;Baud Rate = 38400
+2030 18 0b 00 00 d2         MOVB #%00000000,SC1CR1 ;M = 0, ParityEnable = 0
+2035 18 0b 08 00 d3         MOVB #%00001000,SC1CR2 ;TE = 1
+                        
+203a 10 ef                  CLI
                         ;------------------------------------------------------------------------------
                         ;                       Inicializacion de variables
                         ;------------------------------------------------------------------------------
-201b cf 40 00               LDS #$4000  ;inicializa el stack
-201e ce 00 00               Ldx #0
-                            ;MOVB #100,CONT_RTI
-                            ;CLR FLAGS
+203c cf 40 00               LDS #$4000  ;inicializa el stack
+203f 18 0b 64 10 14         MOVB #100,CONT_RTI
+2044 79 10 1a               CLR BANDERAS
                         ;------------------------------------------------------------------------------
-2021                    MAIN_LOOP:
-2021 16 20 2f               JSR CALCULO
-2024 16 20 5a               JSR BIN_BCD
-2027 16 20 b9               JSR BCD_ASCII
-202a 16 20 dc               JSR DETERMINAR_NIVEL_ESTADO
-202d 20 f2                  BRA MAIN_LOOP
+2047                    MAIN_LOOP:
+2047 16 20 52               JSR CALCULO
+204a 16 20 b2               JSR BIN_BCD
+204d 16 21 11               JSR BCD_ASCII
+2050 20 f5                  BRA MAIN_LOOP
                         ;*******************************************************************************
                         
-202f                    CALCULO:
-202f cc 03 ff                   Ldd #1023
-2032 ce 00 ff                   Ldx #255
-2035 18 10                      Idiv  ;x=4
-2037 fc 10 10                   Ldd NIVEL_PROM
-203a 18 10                      Idiv ;x=NIVEL_PROM/4
-203c b7 c5                      Xgdx ;A=0, B= NIVEL_PROM/4
-203e 86 14                      Ldaa #20
-2040 12                         Mul
-2041 ce 00 ff                   Ldx #255
-2044 18 10                      Idiv
-2046 8e 00 0f                   Cpx #15 ;Maxima altura
-2049 23 03                      Bls get_V
-204b ce 00 0f                   Ldx #15
                         
-204e b7 c5              get_V:  Xgdx  ;Tenemos en B el valor del nivel
-2050 7b 10 16                   Stab NIVEL
-2053 86 07                      ldaa #7 ;Area real es 7.07 pero se redondea
-2055 12                         Mul
-2056 7c 10 15                   Std VOLUMEN
-2059 3d                         Rts
+                        ;------------------------------------------------------------------------------
+                        ;   Subrutina CALCULO: la variable NIVEL_PROM contiene la medicion del tanque a
+                        ;     una resolucion de 10 bits, esta subrutina convierte este valor a una escala
+                        ;     con resolucion de 8 bits y lo guarda en la variable NIVEL. Ademas, a partir
+                        ;     del NIVEL se obtiene el volumen del tanque en metros cubicos y se guarda
+                        ;     en la variable VOLUMEN.
+                        ;------------------------------------------------------------------------------
+2052                    CALCULO:
+2052 cc 03 ff                   Ldd #1023
+2055 ce 00 ff                   Ldx #255
+2058 18 10                      Idiv  ;x=4
+205a fc 10 10                   Ldd NIVEL_PROM
+205d 18 10                      Idiv ;x=NIVEL_PROM/4
+205f b7 c5                      Xgdx
+2061 86 14                      Ldaa #20
+2063 12                         Mul
+2064 ce 00 ff                   Ldx #255
+2067 18 10                      Idiv
+2069 b7 c5                      Xgdx
+206b c1 0f                      Cmpb #15 ;Maxima altura
+206d 23 02                      Bls get_V
+206f c6 0f                      Ldab #15
                         
-205a                    BIN_BCD:
-205a ce 00 0f                           ldx #15
-205d 87                                      clra
-205e f6 10 15                               ldab VOLUMEN
-                        
-2061 79 10 12                               clr BCD_H
-2064 79 10 13                               clr BCD_L
-                                    
-2067                    LOOP_BINBCD:
-2067 59                                     lsld       ;se realiza el desplazamiento
-2068 75 10 13                           rol BCD_L
-206b 75 10 12                               rol BCD_H
-206e 3b                                      pshd
-206f 86 0f                                  ldaa #$0F
-2071 b4 10 13                               anda BCD_L
-2074 81 05                                  cmpa #5
-2076 25 02                                  blo UNIDADES_CONV
-2078 8b 03                                  adda #3
-207a                    UNIDADES_CONV:
-207a 7a 10 14                               staa LOW
-207d 86 f0                                  ldaa #$F0 ;mascara
-207f b4 10 13                               anda BCD_L ;aplica mascara
-2082 81 50                                  cmpa #$50  ;compara con 5
-2084 25 02                                  blo DECENAS_CONV
-2086 8b 30                                  adda #$30
-2088                    DECENAS_CONV:
-2088 bb 10 14                               adda LOW
-208b 7a 10 13                               staa BCD_L
-208e 86 0f                                  ldaa #$0F ;mascara
-2090 b4 10 12                               anda BCD_H ;se obtienen las centenas
-2093 81 05                                  cmpa #5
-2095 25 02                                  blo CENTENAS_CONV
-2097 8b 03                                  adda #3
-2099                    CENTENAS_CONV:
-2099 7a 10 14                               staa LOW
-209c 86 f0                                  ldaa #$F0 ;mascara
-209e b4 10 12                               anda BCD_H ;se obtienen los miles
-20a1 81 50                                  cmpa #$50
-20a3 25 02                                  blo MILES_CONV
-20a5 8b 30                                  adda #$30
-20a7                    MILES_CONV:
-20a7 bb 10 14                               adda LOW
-20aa 7a 10 12                               staa BCD_H
-20ad 3a                                         puld
-20ae 09                                 dex
-20af 26 b6                              bne LOOP_BINBCD
-20b1 59                                 lsld
-20b2 75 10 13                               rol BCD_L
-20b5 75 10 12                               rol BCD_H
-20b8 3d                                      rts
-                        
-20b9                    BCD_ASCII:
-20b9 86 0f                  ldaa #$0F ;mascara
-20bb b4 10 13               anda BCD_L ;unidades
-20be 8b 30                  adda #$30 ;conversion, basat con sumar $30
-20c0 7a 11 15               staa UNIDADES
-20c3 c6 f0                  ldab #$F0 ;mascara
-20c5 f4 10 13               andb BCD_L ;decenas
-20c8 54                     lsrb
-20c9 54                     lsrb
-20ca 54                     lsrb
-20cb 54                     lsrb ;desplazamos
-20cc cb 30                  addb #$30
-20ce 7b 11 14               stab DECENAS
-20d1 86 0f                  ldaa #$0F
-20d3 b4 10 12               anda BCD_H ;centenas
-20d6 8b 30                  adda #$30
-20d8 7a 11 13               staa CENTENAS
-20db 3d                     rts
-                            
-                            
-20dc                    DETERMINAR_NIVEL_ESTADO:
-20dc b6 10 15                   ldaa VOLUMEN
-20df 81 5f                      cmpa #95
-20e1 24 18                      bhs LED_OFF
+2071                    get_V:
+2071 7b 10 12                   Stab NIVEL
+2074 86 07                      ldaa #7 ;Area real es 7.07 pero se redondea
+2076 12                         Mul
+2077 7b 10 13                   Stab VOLUMEN
                                 
-20e3 81 10                      cmpa #16
-20e5 23 0b                      bls LED_ON
-                                
-20e7 81 20                      cmpa #32
-20e9 24 1c                      bhs NO_PRINT
-                                
-20eb 1f 10 17 04 12             brclr BANDERAS,$04,PRINT
-20f0 20 15                      bra NO_PRINT
                         
-20f2                    LED_ON:
-20f2 4c 01 01                   BSET PORTB %00000001 ;enciende la bomba
-20f5 1d 10 17 04                BCLR BANDERAS %00000100 ;MSG_SEL <--- 0 para indicar que el mensaje a imprimir es el de alarma
-20f9 20 07                      BRA PRINT
+207a c1 5f                      cmpb #95
+207c 24 1d                      bhs LED_OFF
                         
-20fb                    LED_OFF:
-20fb 4d 01 01                   BCLR PORTB %00000001 ;se apaga la bomba
-20fe 1c 10 17 04                BSET BANDERAS %00000100 ;MSG_SEL <--- 1 para indicar que el mensaje a imprimir es el de tanque lleno
-2102                    PRINT:
-2102 1c 10 17 02                BSET BANDERAS %00000010 ;MSG <-- 1 para indicar que hay que imprimir otro mensaje
-2106 3d                          rts
+207e c1 10                      cmpb #16
+2080 23 0b                      bls LED_ON
                         
-2107                    NO_PRINT:
-2107 1d 10 17 02                BCLR BANDERAS %00000010 ;MSG <-- 0 para indicar que NO hay que imprimir otro mensaje
-210b 3d                         rts
+2082 c1 20                      cmpb #32
+2084 24 26                      bhs NO_PRINT
+                        
+2086 1f 10 1a 04 1c             brclr BANDERAS,$04,PRINT
+208b 20 1f                      bra NO_PRINT
+                        
+208d                    LED_ON:
+208d 18 0b 00 02 68             movb #$00,PTJ
+2092 4c 01 01           	BSET PORTB %00000001 ;enciende la bomba
+2095 1d 10 1a 04                BCLR BANDERAS %00000100 ;MSG_SEL <--- 0 para indicar que el mensaje a imprimir es el de alarma
+2099 20 0c                      BRA PRINT
+                        
+209b                    LED_OFF:
+209b 18 0b 02 02 68     	MOVB #$02,PTJ
+20a0 4d 01 01                   BCLR PORTB %00000001 ;se apaga la bomba
+20a3 1c 10 1a 04                BSET BANDERAS %00000100 ;MSG_SEL <--- 1 para indicar que el mensaje a imprimir es el de tanque lleno
+20a7                    PRINT:
+20a7 1c 10 1a 02                BSET BANDERAS %00000010 ;MSG <-- 1 para indicar que hay que imprimir otro mensaje
+20ab 3d                          rts
+                        
+20ac                    NO_PRINT:
+20ac 1d 10 1a 02                BCLR BANDERAS %00000010 ;MSG <-- 0 para indicar que NO hay que imprimir otro mensaje
+20b0 3d                         rts
+20b1 3d                         Rts
+                        ;------------------------------------------------------------------------------
+                        ;-------------------------------------------------------------------------------
+                        
+20b2                    BIN_BCD:
+20b2 cd 00 0f                           ldy #15
+20b5 87                                 clra
+20b6 f6 10 13                           ldab VOLUMEN
+                        
+20b9 79 10 15                           clr BCD_H
+20bc 79 10 16                           clr BCD_L
+                        
+20bf                    LOOP_BINBCD:
+20bf 59                                 lsld       ;se realiza el desplazamiento
+20c0 75 10 16                           rol BCD_L
+20c3 75 10 15                           rol BCD_H
+20c6 3b                                 pshd       ;guardamos d en pila para usar a y b
+20c7 86 0f                              ldaa #$0F
+20c9 b4 10 16                           anda BCD_L
+20cc 81 05                              cmpa #5
+20ce 25 02                              blo UNIDADES_CONV
+20d0 8b 03                              adda #3
+20d2                    UNIDADES_CONV:
+20d2 7a 10 17                           staa LOW
+20d5 86 f0                              ldaa #$F0 ;mascara
+20d7 b4 10 16                           anda BCD_L ;aplica mascara
+20da 81 50                              cmpa #$50  ;compara con 5
+20dc 25 02                              blo DECENAS_CONV
+20de 8b 30                              adda #$30
+20e0                    DECENAS_CONV:
+20e0 bb 10 17                           adda LOW
+20e3 7a 10 16                           staa BCD_L
+20e6 86 0f                              ldaa #$0F ;mascara
+20e8 b4 10 15                           anda BCD_H ;se obtienen las centenas
+20eb 81 05                              cmpa #5
+20ed 25 02                              blo CENTENAS_CONV
+20ef 8b 03                              adda #3
+20f1                    CENTENAS_CONV:
+20f1 7a 10 17                           staa LOW
+20f4 86 f0                              ldaa #$F0 ;mascara
+20f6 b4 10 15                           anda BCD_H ;se obtienen los miles
+20f9 81 50                              cmpa #$50
+20fb 25 02                              blo MILES_CONV
+20fd 8b 30                              adda #$30
+20ff                    MILES_CONV:
+20ff bb 10 17                           adda LOW
+2102 7a 10 15                           staa BCD_H
+2105 03                                 dey
+2106 3a                                 puld          ;recupera d
+2107 26 b6                              bne LOOP_BINBCD
+2109 59                                 lsld
+210a 75 10 16                           rol BCD_L
+210d 75 10 15                           rol BCD_H
+2110 3d                                 rts
+                        
+                        ;-------------------------------------------------------------------------------
+2111                    BCD_ASCII:
+2111 86 0f                          ldaa #$0F ;mascara
+2113 b4 10 16                       anda BCD_L ;unidades
+2116 8b 30                          adda #$30 ;conversion, basat con sumar $30
+2118 7a 11 0d                       staa UNIDADES
+211b c6 f0                          ldab #$F0 ;mascara
+211d f4 10 16                       andb BCD_L ;decenas
+2120 54                             lsrb
+2121 54                             lsrb
+2122 54                             lsrb
+2123 54                             lsrb ;desplazamos
+2124 cb 30                          addb #$30
+2126 7b 11 0c                       stab DECENAS
+2129 86 0f                          ldaa #$0F
+212b b4 10 15                       anda BCD_H ;centenas
+212e 8b 30                          adda #$30
+2130 7a 11 0b                       staa CENTENAS
+2133 3d                             rts
+                        
+                        
+                        
                         
                         
                         
@@ -898,35 +926,35 @@ ffd2 21 0c                              Dw ATD0_ISR ;direccion de la subrutina d
                         ;     esta subruina calcula el promedio de esas mediciones y lo guarda en la
                         ;     variable NIVEL_PROM. Ademas inicia el siguiente ciclo de conversion.
                         ;------------------------------------------------------------------------------
-210c                    ATD0_ISR:
-210c dc 90                  Ldd ADR00H
-210e d3 92                  Addd ADR01H
-2110 d3 94                  Addd ADR02H
-2112 d3 96                  Addd ADR03H
-2114 d3 98                  Addd ADR04H
-2116 d3 9a                  Addd ADR05H
+2134                    ATD0_ISR:
+2134 dc 90                  Ldd ADR00H
+2136 d3 92                  Addd ADR01H
+2138 d3 94                  Addd ADR02H
+213a d3 96                  Addd ADR03H
+213c d3 98                  Addd ADR04H
+213e d3 9a                  Addd ADR05H
                             ;Tenemos en RR1 la suma de los 6 numeros
-2118 ce 00 06               Ldx #6
-211b 18 10                  Idiv ;X = D/X para el promedio
-211d 7e 10 10               Stx NIVEL_PROM ;Dado por el enunciado para guardar el promedio
-2120 18 0b 80 00 85         Movb #$80,ATD0CTL5 ;escribimos para ques se repita el proceso
-2125 0b                     Rti
+2140 ce 00 06               Ldx #6
+2143 18 10                  Idiv ;X = D/X para el promedio
+2145 7e 10 10               Stx NIVEL_PROM ;Dado por el enunciado para guardar el promedio
+2148 18 0b 80 00 85         Movb #$80,ATD0CTL5 ;escribimos para ques se repita el proceso
+214d 0b                     Rti
                         ;------------------------------------------------------------------------------
                         
-2126                    RTI_ISR:
-2126 4c 37 80               BSET CRGFLG %10000000  ;reinicia la bandera de interrupcion
-2129 f7 10 18               TST CONT_RTI
-212c 27 05                  BEQ REFRESCAR
-212e 73 10 18               DEC CONT_RTI
-2131 20 15                  BRA FIN_RTI
-2133                    REFRESCAR:
-2133 18 03 10 1b 10 19      MOVW #MENSAJE,PRINT_PTR ;se carga el inicio del mensaje al puntero de impresion.
-2139 4c d3 40               BSET SC1CR2 %01000000 ;Interrupciones de transmisor: TCIE = 1
-213c 96 d4                  LDAA SC1SR1 ;primer paso para iniciar transmision
-213e 18 0b 0c 00 d7         MOVB #NP,SC1DRL ;se escribe el dato a transmitir para iniciar la transmision.
-2143 18 0b 64 10 18         MOVB #100,CONT_RTI ;se recarga el contador para la cadencia de 1 Hz.
-2148                    FIN_RTI:
-2148 0b                     RTI
+214e                    RTI_ISR:
+214e 4c 37 80               BSET CRGFLG %10000000  ;reinicia la bandera de interrupcion
+2151 f7 10 14               TST CONT_RTI
+2154 27 05                  BEQ REFRESCAR
+2156 73 10 14               DEC CONT_RTI
+2159 20 15                  BRA FIN_RTI
+215b                    REFRESCAR:
+215b 18 03 10 1b 10 18      MOVW #MENSAJE,PRINT_PTR ;se carga el inicio del mensaje al puntero de impresion.
+2161 4c d3 40               BSET SC1CR2 %01000000 ;Interrupciones de transmisor: TCIE = 1
+2164 96 d4                  LDAA SC1SR1 ;primer paso para iniciar transmision
+2166 18 0b 0c 00 d7         MOVB #NP,SC1DRL ;se escribe el dato a transmitir para iniciar la transmision.
+216b 18 0b 64 10 14         MOVB #100,CONT_RTI ;se recarga el contador para la cadencia de 1 Hz.
+2170                    FIN_RTI:
+2170 0b                     RTI
                         ;------------------------------------------------------------------------------
                         
                         ;------------------------------------------------------------------------------
@@ -934,37 +962,44 @@ ffd2 21 0c                              Dw ATD0_ISR ;direccion de la subrutina d
                         ;     interrupcion, a traves de la interfaz SC1. Cuando termina de transimitir
                         ;     todo el mensaje se deshabilita la interrupcion.
                         ;------------------------------------------------------------------------------
-2149                    SCI_ISR:
-2149 fe 10 19               LDX PRINT_PTR ;se carga el puntero de impresion de bytes
-214c a6 30                  LDAA 1,X+ ;se obtiene el caracter que se debe imprimir.
-214e 81 00                  CMPA #EOM ;se comprueba que el caracter no sea el final de la hilera de caracteres
-2150 27 09                  BEQ MENSAJES ;si es el final, se deben revisar los casos especiales de impresion
-2152 d6 d4                  LDAB SC1SR1 ;primer paso para iniciar transmision
-2154 5a d7                  STAA SC1DRL ;se escribe el dato a transmitir para iniciar la transmision.
-2156 7e 10 19               STX PRINT_PTR ;se almacena el puntero de impresion.
-2159 20 2e                  BRA FIN_SCI ;se termina la subrutina y se espera a que vuelva a interrumpir luego de transmitir el byte.
-215b                    MENSAJES:
-215b 1e 10 17 01 22         BRSET BANDERAS %00000001 SCI_OFF ;Si DONE = 1 no hay nada mas por imprimir y se debe desahibilitar la interrupcion SCI
-2160 1f 10 17 02 1d         BRCLR BANDERAS %00000010 SCI_OFF ;Si MSG = 0 es porque no hay que imprimir ningun mensaje adicional.
-2165 1f 10 17 04 0c         BRCLR BANDERAS %00000100 PRINT_ALARM ;Si MSG_SEL = 0 el mensaje que se debe imprimir es el de alarma.
+2171                    SCI_ISR:
                         
-216a 18 03 11 51 10 19      MOVW #MSG_FULL,PRINT_PTR ;se carga el mensaje de tanque lleno
-2170 1c 10 17 01            BSET BANDERAS %00000001 ;DONE <-- 1 para que en el proximo caracter EOM se termine el refrescamiento de la pantalla.
-2174 20 13                  BRA FIN_SCI
+2171 fe 10 18               ldx PRINT_PTR         ;Puntero para imprimir
+2174 a6 30                  ldaa 1,X+             ; dato a imprimir
+2176 81 00                  cmpa #EOM                 ; revisa que o sea final
+2178 27 09                  beq DET_MSG 	;final
+217a d6 d4                  ldab SC1SR1 ;inicia transmision
+217c 5a d7                  staa SC1DRL
+217e 7e 10 18               stx PRINT_PTR 	;puntero de impresion.
+2181 20 33                  bra FIN_SCI 	;se termina la subrutina y se espera a que vuelva a interrumpir luego de transmitir el byte.
                         
-2176                    PRINT_ALARM:
-2176 18 03 11 1d 10 19      MOVW #MSG_ALARM,PRINT_PTR ;se carga el mensaje de alarma
-217c 1c 10 17 01            BSET BANDERAS %00000001 ;DONE <-- 1 para que en el proximo caracter EOM se termine el refrescamiento de la pantalla.
-2180 20 07                  BRA FIN_SCI
+2183                    DET_MSG:
                         
-2182                    SCI_OFF:
-2182 4d d3 40               BCLR SC1CR2 %01000000 ;Se deshabilita la interrupcion SPI. TCIE = 0.
-2185 1d 10 17 01            BCLR BANDERAS %00000001 ;DONE <-- 0 para que la bandera quede lista para el proximo refrescamiento
+2183 1e 10 1a 01 27         brset BANDERAS,$01,SCI_OFF ;Revisa si ya terminó de imprimir
+2188 1f 10 1a 02 22         brclr BANDERAS,$02,SCI_OFF
+218d 1f 10 1a 04 0c         brclr BANDERAS,$04,ALARMA ;Se debe imprimir es el de alarma.
                         
-2189                    FIN_SCI:
-2189 0b                     RTI
+2192 1c 10 1a 01            bset BANDERAS,$01 ;Pone bandera de final
+2196 18 03 11 49 10 18      movw #FULL,PRINT_PTR ;Tanque lleno
+                        
+219c 20 18                  bra FIN_SCI
+                        
+219e                    ALARMA:
+219e 18 0b 01 00 01     	movb #$01,PORTB
+21a3 18 03 11 15 10 18      movw #ALARMA_BAJO,PRINT_PTR ;se carga el mensaje de alarma
+21a9 1c 10 1a 01            bset BANDERAS $01 ;Pone bandera de final
+                            
+21ad 20 07                  bra FIN_SCI
+                        
+21af                    SCI_OFF:
+21af 4d d3 40               bclr SC1CR2,$40 ;Se deshabilita la interrupcion SPI. TCIE = 0.
+21b2 1d 10 1a 01            bclr BANDERAS,$01 ;No terminada
+                        
+21b6                    FIN_SCI:
+21b6 0b                     rti
                         ;------------------------------------------------------------------------------
+                        
 
-Executed: Fri Feb 19 19:34:18 2021
-Total cycles: 513, Total bytes: 755
+Executed: Sat Feb 20 16:10:15 2021
+Total cycles: 547, Total bytes: 796
 Total errors: 0, Total warnings: 0

@@ -14,14 +14,6 @@
 ;##############################################################################
 #include registers.inc
 
-HMAX:           EQU 15 ;metros
-AREA_M2_x10:    EQU 71 ;metros cuadrados escalados por 10 (el area de la base es 7.06 m2)
-PLENA_ESCALA:   EQU 20 ;metros
-CUANTOS_10:     EQU 1024 ;conversiones a 10 bits --> 2^10 cuantos.
-CUANTOS_8:      EQU 256 ;conversiones a 8 bits --> 2^8 cuantos.
-PORCIENTO_15:   EQU 16 ;15% del volumen maximo 105.9
-PORCIENTO_30:   EQU 32 ;30% del volumen maximo 105.9
-PORCIENTO_90:   EQU 95 ;90% del volumen maximo 105.9
 
 EOM:            EQU $00 ;end of message
 CR:             EQU $0D ;carriage return
@@ -50,7 +42,7 @@ BCD_H:          DS 1 ;miles y centenas en BCD
 BCD_L:          DS 1 ;decenas y unidades en BCD
 LOW:            DS 1 ;variable temporal
 PRINT_PTR:      DS 2 ;con este puntero se maneja la impresion caracter por caracter.
-FLAGS:          DS 1 ; X:X:X:X:X:MSG_SEL:MSG:DONE
+BANDERAS:          DS 1 ; X:X:X:X:X:MSG_SEL:MSG:DONE
 
 ;Mensajes:
 MENSAJE:        DB SUB
@@ -109,13 +101,13 @@ CONFIG_ATD:
 ;------------------------------------------------------------------------------
     LDS #$4000  ;inicializa el stack
     MOVB #100,CONT_RTI
-    CLR FLAGS
+    CLR BANDERAS
 ;------------------------------------------------------------------------------
 MAIN_LOOP:
     JSR CALCULO
-    JSR BIN_BCD_9999
-    JSR BCD_ASCII_999
-    JSR DETERMINE_FLAGS
+    JSR BIN_BCD
+    JSR BCD_ASCII
+    JSR DETERMINAR_NIVEL_ESTADO
     BRA MAIN_LOOP
 ;*******************************************************************************
 
@@ -128,132 +120,113 @@ MAIN_LOOP:
 ;     en la variable VOLUMEN.
 ;------------------------------------------------------------------------------
 CALCULO:
-    LDD #CUANTOS_10-1
-    LDX #CUANTOS_8-1
-    IDIV ;X = D/X = 1023/255 ~ 4.   Los cuantos a 8 bits valen 4 veces mas en escala que los cuantos a 10 bits.
-    LDD NIVEL_PROM
-    IDIV ;X = D/X = NIVEL_PROM/4. Se convierte la medicion a 10 bits en su valor a 8 bits.
-    TFR X,D
-    LDAA #PLENA_ESCALA
-    MUL ;D = A*B = PLENA_ESCALA*NIVEL
-    LDX #CUANTOS_8-1
-    IDIV ;X = D/X = NIVEL*[PLENA_ESCALA/(CUANTOS_8-1)] = NIVEL*[RESOLUCION] = ALTURA en metros.
-    TFR X,D
-    CMPB #HMAX
-    BLS CALC_VOL
-    LDAB #HMAX ;este programa simula el sensor del tanque con el potenciometro, por lo  que si se podria tener la medicion maxima de 20 metros. Como el tanque es de 15 metros maximo se fuerza que este sea el nivel si la medicion es mayor.
-CALC_VOL:
-    STAB NIVEL ;se almacena el valor en metros de la medicion del nivel, a una resolucion de 8 bits.
-    LDAA #AREA_M2_x10 ;Se carga el valor del area, precalculado a mano pues es constate.
-    MUL ;D = A*B = AREA_M2_x10*NIVEL = VOLUMEN*10
-    LDX #10
-    IDIV ;X = D/X = VOLUMEN*10/10 = VOLUMEN
-    TFR X,D
-    STAB VOLUMEN
-    RTS
-;------------------------------------------------------------------------------
+        Ldd #1023
+        Ldx #255
+        Idiv  ;x=4
+        Ldd NIVEL_PROM
+        Idiv ;x=NIVEL_PROM/4
+        Xgdx
+        Ldaa #20
+        Mul
+        Ldx #255
+        Idiv
+	Xgdx
+        Cmpb #15 ;Maxima altura
+        Bls get_V
+        Ldab #15
 
+get_V:
+        Stab NIVEL
+        ldaa #7 ;Area real es 7.07 pero se redondea
+        Mul
+        Stab VOLUMEN
+        Rts
 ;------------------------------------------------------------------------------
-;   Subrutina BIN_BCD_9999: esta subrutina convierte un valor binario entre 0 y 9999
-;     a BCD. Cada digitio en BCD requiere un nibble, por lo que se usan las variables
-;     BCD_H y BCD_L para almacenar cada uno de ellos. La variable a convertir es VOLUMEN.
-;------------------------------------------------------------------------------
-BIN_BCD_9999:
-                ldx #15
-                     clra
-                    ldab VOLUMEN
+;-------------------------------------------------------------------------------
 
-                    clr BCD_H
-                    clr BCD_L
+BIN_BCD:
+                ldy #15
+                clra
+                ldab VOLUMEN
 
+                clr BCD_H
+                clr BCD_L
+            
 LOOP_BINBCD:
-                    lsld       ;se realiza el desplazamiento
+                lsld       ;se realiza el desplazamiento
                 rol BCD_L
-                    rol BCD_H
-                     pshd
-                    ldaa #$0F
-                    anda BCD_L
-                    cmpa #5
-                    blo UNIDADES_CONV
-                    adda #3
+                rol BCD_H
+                pshd       ;guardamos d en pila para usar a y b
+                ldaa #$0F
+                anda BCD_L
+                cmpa #5
+                blo UNIDADES_CONV
+                adda #3
 UNIDADES_CONV:
-                    staa LOW
-                    ldaa #$F0 ;mascara
-                    anda BCD_L ;aplica mascara
-                    cmpa #$50  ;compara con 5
-                    blo DECENAS_CONV
-                    adda #$30
+                staa LOW
+                ldaa #$F0 ;mascara
+                anda BCD_L ;aplica mascara
+                cmpa #$50  ;compara con 5
+                blo DECENAS_CONV
+                adda #$30
 DECENAS_CONV:
-                    adda LOW
-                    staa BCD_L
-                    ldaa #$0F ;mascara
-                    anda BCD_H ;se obtienen las centenas
-                    cmpa #5
-                    blo CENTENAS_CONV
-                    adda #3
+                adda LOW
+                staa BCD_L
+                ldaa #$0F ;mascara
+                anda BCD_H ;se obtienen las centenas
+                cmpa #5
+                blo CENTENAS_CONV
+                adda #3
 CENTENAS_CONV:
-                    staa LOW
-                    ldaa #$F0 ;mascara
-                    anda BCD_H ;se obtienen los miles
-                    cmpa #$50
-                    blo MILES_CONV
-                    adda #$30
+                staa LOW
+                ldaa #$F0 ;mascara
+                anda BCD_H ;se obtienen los miles
+                cmpa #$50
+                blo MILES_CONV
+                adda #$30
 MILES_CONV:
-                    adda LOW
-                    staa BCD_H
-                        puld
-                dex
+                adda LOW
+                staa BCD_H
+                puld          ;recupera d
+                dey
                 bne LOOP_BINBCD
                 lsld
-                    rol BCD_L
-                    rol BCD_H
-                     rts
-;------------------------------------------------------------------------------
+                rol BCD_L
+                rol BCD_H
+                rts
 
-;------------------------------------------------------------------------------
-;   Subrutina BCD_ACII_999: esta subrutina toma un numero en BCD de tres digitos
-;     y convierte cada uno de sus digitos en su correspondiente codificacion ASCII.
-;     Se guardan en las variables CENTENAS, DECENAS y UNIDADES.
-;------------------------------------------------------------------------------
-BCD_ASCII_999:
-    ldaa #$0F ;mascara
-    anda BCD_L ;unidades
-    adda #$30 ;conversion, basat con sumar $30
-    staa UNIDADES
-    ldab #$F0 ;mascara
-    andb BCD_L ;decenas
-    lsrb
-    lsrb
-    lsrb
-    lsrb ;desplazamos
-    addb #$30
-    stab DECENAS
-    ldaa #$0F
-    anda BCD_H ;centenas
-    adda #$30
-    staa CENTENAS
-    rts
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
-;   Subrutina DETERMINE_FLAGS: a partir del VOLUMEN calculado, esta subrutina
-;     activa el LED cuando se esta por debajo del 15% y lo desactiva cuando
-;     se esta por encima de 90%. Ademas modifica las banderas MSG y MSG_SEL para
-;     que cuando se refresque la terminal se impriman los mensajes de alarma y
-;     tanque lleno cuando corresponda.
-;------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------
+BCD_ASCII:
+            ldaa #$0F ;mascara
+            anda BCD_L ;unidades
+            adda #$30 ;conversion, basat con sumar $30
+            staa UNIDADES
+            ldab #$F0 ;mascara
+            andb BCD_L ;decenas
+            lsrb
+            lsrb
+            lsrb
+            lsrb ;desplazamos
+            addb #$30
+            stab DECENAS
+            ldaa #$0F
+            anda BCD_H ;centenas
+            adda #$30
+            staa CENTENAS
+            rts
+    
+    
 DETERMINAR_NIVEL_ESTADO:
         ldaa VOLUMEN
         cmpa #95
         bhs LED_OFF
-
+        
         cmpa #16
         bls LED_ON
-
+        
         cmpa #32
         bhs NO_PRINT
-
+        
         brclr BANDERAS,$04,PRINT
         bra NO_PRINT
 
@@ -272,7 +245,7 @@ PRINT:
 NO_PRINT:
         BCLR BANDERAS %00000010 ;MSG <-- 0 para indicar que NO hay que imprimir otro mensaje
         rts
-;------------------------------------------------------------------------------
+
 
 
 ;------------------------------------------------------------------------------
@@ -295,13 +268,6 @@ ATD0_ISR:
     Rti
 ;------------------------------------------------------------------------------
 
-;------------------------------------------------------------------------------
-;   Subrutina RTI_ISR: el canal 5 del output compare interrumpe a un periodo
-;     de 10 ms y por medio de la variable CONT_RTI se logra una cadencia de 1 Hz
-;     en la cual se refresca la informacion de la terminal. Para hacer esto,
-;     cuando el contador CONT_RTI (precargado con 100) alcanza un valor de 0, se
-;     habilita la interrupcion del SCI1 y se inicia una transmision.
-;------------------------------------------------------------------------------
 RTI_ISR:
     BSET CRGFLG %10000000  ;reinicia la bandera de interrupcion
     TST CONT_RTI
@@ -324,32 +290,32 @@ FIN_RTI:
 ;     todo el mensaje se deshabilita la interrupcion.
 ;------------------------------------------------------------------------------
 SCI_ISR:
-    LDX PRINT_PTR ;se carga el puntero de impresion de bytes
-    LDAA 1,X+ ;se obtiene el caracter que se debe imprimir.
-    CMPA #EOM ;se comprueba que el caracter no sea el final de la hilera de caracteres
-    BEQ MENSAJES ;si es el final, se deben revisar los casos especiales de impresion
-    LDAB SC1SR1 ;primer paso para iniciar transmision
-    STAA SC1DRL ;se escribe el dato a transmitir para iniciar la transmision.
-    STX PRINT_PTR ;se almacena el puntero de impresion.
-    BRA FIN_SCI ;se termina la subrutina y se espera a que vuelva a interrumpir luego de transmitir el byte.
+    ldx PRINT_PTR ;se carga el puntero de impresion de bytes
+    ldaa 1,X+ ;se obtiene el caracter que se debe imprimir.
+    cmpa #EOM ;se comprueba que el caracter no sea el final de la hilera de caracteres
+    beq MENSAJES ;si es el final, se deben revisar los casos especiales de impresion
+    ldab SC1SR1 ;primer paso para iniciar transmision
+    staa SC1DRL ;se escribe el dato a transmitir para iniciar la transmision.
+    stx PRINT_PTR ;se almacena el puntero de impresion.
+    bra FIN_SCI ;se termina la subrutina y se espera a que vuelva a interrumpir luego de transmitir el byte.
 MENSAJES:
-    BRSET FLAGS %00000001 SCI_OFF ;Si DONE = 1 no hay nada mas por imprimir y se debe desahibilitar la interrupcion SCI
-    BRCLR FLAGS %00000010 SCI_OFF ;Si MSG = 0 es porque no hay que imprimir ningun mensaje adicional.
-    BRCLR FLAGS %00000100 PRINT_ALARM ;Si MSG_SEL = 0 el mensaje que se debe imprimir es el de alarma.
+    brset BANDERAS $01 SCI_OFF ;Si DONE = 1 no hay nada mas por imprimir y se debe desahibilitar la interrupcion SCI
+    brclr BANDERAS $02 SCI_OFF ;Si MSG = 0 es porque no hay que imprimir ningun mensaje adicional.
+    brclr BANDERAS $04 PRINT_ALARM ;Si MSG_SEL = 0 el mensaje que se debe imprimir es el de alarma.
 
-    MOVW #MSG_FULL,PRINT_PTR ;se carga el mensaje de tanque lleno
-    BSET FLAGS %00000001 ;DONE <-- 1 para que en el proximo caracter EOM se termine el refrescamiento de la pantalla.
-    BRA FIN_SCI
+    movw #MSG_FULL,PRINT_PTR ;se carga el mensaje de tanque lleno
+    bset BANDERAS $01 ;DONE <-- 1 para que en el proximo caracter EOM se termine el refrescamiento de la pantalla.
+    bra FIN_SCI
 
 PRINT_ALARM:
-    MOVW #MSG_ALARM,PRINT_PTR ;se carga el mensaje de alarma
-    BSET FLAGS %00000001 ;DONE <-- 1 para que en el proximo caracter EOM se termine el refrescamiento de la pantalla.
-    BRA FIN_SCI
+    movw #MSG_ALARM,PRINT_PTR ;se carga el mensaje de alarma
+    bset BANDERAS $01 ;DONE <-- 1 para que en el proximo caracter EOM se termine el refrescamiento de la pantalla.
+    bra FIN_SCI
 
 SCI_OFF:
-    BCLR SC1CR2 %01000000 ;Se deshabilita la interrupcion SPI. TCIE = 0.
-    BCLR FLAGS %00000001 ;DONE <-- 0 para que la bandera quede lista para el proximo refrescamiento
+    bclr SC1CR2 %01000000 ;Se deshabilita la interrupcion SPI. TCIE = 0.
+    bclr BANDERAS $01 ;DONE <-- 0 para que la bandera quede lista para el proximo refrescamiento
 
 FIN_SCI:
-    RTI
+    rti
 ;------------------------------------------------------------------------------
