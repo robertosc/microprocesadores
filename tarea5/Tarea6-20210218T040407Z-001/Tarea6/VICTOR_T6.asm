@@ -159,53 +159,55 @@ CALC_VOL:
 ;     BCD_H y BCD_L para almacenar cada uno de ellos. La variable a convertir es VOLUMEN.
 ;------------------------------------------------------------------------------
 BIN_BCD_9999:
-    CLRA
-    LDAB VOLUMEN
-    LDX #15 ;hay 16 bits, pero el ultimo desplazamiento se hace manualmente
-    CLR BCD_H
-    CLR BCD_L
-LOOP_BIN_BCD:
-    LSLD
-    ROL BCD_L
-    ROL BCD_H
-    PSHD
-    LDAA #$0F ;mascara
-    ANDA BCD_L ;se obtienen las unidades
-    CMPA #5
-    BLO NO_ADD_U
-    ADDA #3
-NO_ADD_U:
-    STAA LOW
-    LDAA #$F0 ;mascara
-    ANDA BCD_L ;se obtienen las decenas
-    CMPA #$50
-    BLO NO_ADD_D
-    ADDA #$30
-NO_ADD_D:
-    ADDA LOW
-    STAA BCD_L
-    LDAA #$0F ;mascara
-    ANDA BCD_H ;se obtienen las centenas
-    CMPA #5
-    BLO NO_ADD_C
-    ADDA #3
-NO_ADD_C:
-    STAA LOW
-    LDAA #$F0 ;mascara
-    ANDA BCD_H ;se obtienen los miles
-    CMPA #$50
-    BLO NO_ADD_M
-    ADDA #$30
-NO_ADD_M:
-    ADDA LOW
-    STAA BCD_H
-    PULD
-    DEX
-    BNE LOOP_BIN_BCD
-    LSLD
-    ROL BCD_L
-    ROL BCD_H
-    RTS
+                ldx #15
+                     clra
+                    ldab VOLUMEN
+
+                    clr BCD_H
+                    clr BCD_L
+
+LOOP_BINBCD:
+                    lsld       ;se realiza el desplazamiento
+                rol BCD_L
+                    rol BCD_H
+                     pshd
+                    ldaa #$0F
+                    anda BCD_L
+                    cmpa #5
+                    blo UNIDADES_CONV
+                    adda #3
+UNIDADES_CONV:
+                    staa LOW
+                    ldaa #$F0 ;mascara
+                    anda BCD_L ;aplica mascara
+                    cmpa #$50  ;compara con 5
+                    blo DECENAS_CONV
+                    adda #$30
+DECENAS_CONV:
+                    adda LOW
+                    staa BCD_L
+                    ldaa #$0F ;mascara
+                    anda BCD_H ;se obtienen las centenas
+                    cmpa #5
+                    blo CENTENAS_CONV
+                    adda #3
+CENTENAS_CONV:
+                    staa LOW
+                    ldaa #$F0 ;mascara
+                    anda BCD_H ;se obtienen los miles
+                    cmpa #$50
+                    blo MILES_CONV
+                    adda #$30
+MILES_CONV:
+                    adda LOW
+                    staa BCD_H
+                        puld
+                dex
+                bne LOOP_BINBCD
+                lsld
+                    rol BCD_L
+                    rol BCD_H
+                     rts
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
@@ -214,23 +216,24 @@ NO_ADD_M:
 ;     Se guardan en las variables CENTENAS, DECENAS y UNIDADES.
 ;------------------------------------------------------------------------------
 BCD_ASCII_999:
-    LDAA #$0F ;mascara
-    LDAB #$F0 ;mascara
-    ANDA BCD_L ;se obtienen las unidades
-    ADDA #$30 ;conversion a ASCII
-    STAA UNIDADES
-    ANDB BCD_L ;se obtienen las descenas
-    LSRB
-    LSRB
-    LSRB
-    LSRB ;se deben desplazar a la parte baja del byte
-    ADDB #$30 ;conversion a ASCII
-    STAB DECENAS
-    LDAA #$0F
-    ANDA BCD_H ;se obtienen las centenas
-    ADDA #$30 ;conversion a ASCII
-    STAA CENTENAS
-    RTS
+    ldaa #$0F ;mascara
+    anda BCD_L ;unidades
+    adda #$30 ;conversion, basat con sumar $30
+    staa UNIDADES
+    ldab #$F0 ;mascara
+    andb BCD_L ;decenas
+    lsrb
+    lsrb
+    lsrb
+    lsrb ;desplazamos
+    addb #$30
+    stab DECENAS
+    ldaa #$0F
+    anda BCD_H ;centenas
+    adda #$30
+    staa CENTENAS
+    rts
+
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
@@ -240,34 +243,35 @@ BCD_ASCII_999:
 ;     que cuando se refresque la terminal se impriman los mensajes de alarma y
 ;     tanque lleno cuando corresponda.
 ;------------------------------------------------------------------------------
-DETERMINE_FLAGS:
-    LDAA VOLUMEN
-    CMPA #PORCIENTO_15 ;se compara el volumen con el 15%
-    BLS LED_ON ;si es menor se debe encender la alarma
-    CMPA #PORCIENTO_90 ;se compara el volumen con el 90%
-    BHS LED_OFF ;si es mayor se debe apagar la bomba
-    CMPA #PORCIENTO_30 ;se compara el volumen con el 30%
-    BHS NO_PRINT ;si es mayor (ya se sabe que es menor que 90%) no hay nada que hacer.
-    BRCLR FLAGS %00000100 PRINT ;Si MSG_SEL=0
-    BRA NO_PRINT
+DETERMINAR_NIVEL_ESTADO:
+        ldaa VOLUMEN
+        cmpa #95
+        bhs LED_OFF
 
+        cmpa #16
+        bls LED_ON
+
+        cmpa #32
+        bhs NO_PRINT
+
+        brclr BANDERAS,$04,PRINT
+        bra NO_PRINT
 
 LED_ON:
-    BSET PORTB %00000001 ;enciende la bomba
-    BCLR FLAGS %00000100 ;MSG_SEL <--- 0 para indicar que el mensaje a imprimir es el de alarma
-    BRA PRINT
+        BSET PORTB %00000001 ;enciende la bomba
+        BCLR BANDERAS %00000100 ;MSG_SEL <--- 0 para indicar que el mensaje a imprimir es el de alarma
+        BRA PRINT
 
 LED_OFF:
-    BCLR PORTB %00000001 ;se apaga la bomba
-    BSET FLAGS %00000100 ;MSG_SEL <--- 1 para indicar que el mensaje a imprimir es el de tanque lleno
+        BCLR PORTB %00000001 ;se apaga la bomba
+        BSET BANDERAS %00000100 ;MSG_SEL <--- 1 para indicar que el mensaje a imprimir es el de tanque lleno
 PRINT:
-    BSET FLAGS %00000010 ;MSG <-- 1 para indicar que hay que imprimir otro mensaje
-    BRA FIN_DETERMINE
+        BSET BANDERAS %00000010 ;MSG <-- 1 para indicar que hay que imprimir otro mensaje
+         rts
 
 NO_PRINT:
-    BCLR FLAGS %00000010 ;MSG <-- 0 para indicar que NO hay que imprimir otro mensaje
-FIN_DETERMINE:
-    RTS
+        BCLR BANDERAS %00000010 ;MSG <-- 0 para indicar que NO hay que imprimir otro mensaje
+        rts
 ;------------------------------------------------------------------------------
 
 
@@ -277,17 +281,18 @@ FIN_DETERMINE:
 ;     variable NIVEL_PROM. Ademas inicia el siguiente ciclo de conversion.
 ;------------------------------------------------------------------------------
 ATD0_ISR:
-    LDD ADR00H
-    ADDD ADR01H
-    ADDD ADR02H
-    ADDD ADR03H
-    ADDD ADR04H
-    ADDD ADR05H ;En D se tiene la sumatoria de las mediciones al canal 0 del ATD.
-    LDX #6 ;carga el divisor de 6 para calcular el promedio
-    IDIV ;X <-- D/X = sumatoria/6 = promedio
-    STX NIVEL_PROM ;se almacena el promedio en la variable designada.
-    MOVB #$80,ATD0CTL5 ;al escribir a ATD0CTL5 se inicia un nuevo ciclo de conversion
-    RTI
+    Ldd ADR00H
+    Addd ADR01H
+    Addd ADR02H
+    Addd ADR03H
+    Addd ADR04H
+    Addd ADR05H
+    ;Tenemos en RR1 la suma de los 6 numeros
+    Ldx #6
+    Idiv ;X = D/X para el promedio
+    Stx NIVEL_PROM ;Dado por el enunciado para guardar el promedio
+    Movb #$80,ATD0CTL5 ;escribimos para ques se repita el proceso
+    Rti
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
