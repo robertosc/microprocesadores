@@ -1,4 +1,4 @@
- ;##############################################################################
+;##############################################################################
 ;                                 Tarea #6
 ;   Fecha: 13 de noviembre del 2020.
 ;   Autor: Victor Manuel Yeom Song
@@ -49,7 +49,7 @@ CONT_RTI:       DS 1 ;permite generar la cadencia de 1 seg en el RTI para la tra
 BCD_H:          DS 1 ;miles y centenas en BCD
 BCD_L:          DS 1 ;decenas y unidades en BCD
 LOW:            DS 1 ;variable temporal
-PRINT_PTR:      DS 2 ;con este puntero se maneja la impresion caracter por caracter.
+Puntero   :      DS 2 ;con este puntero se maneja la impresion caracter por caracter.
 FLAGS:          DS 1 ; X:X:X:X:X:MSG_SEL:MSG:DONE
 
 ;Mensajes:
@@ -101,7 +101,7 @@ CONFIG_ATD:
 ;Configuracion del Serial Communication Interface (SCI1):
     MOVW #39,SC1BDH ;Baud Rate = 38400
     MOVB #%00000000,SC1CR1 ;M = 0, ParityEnable = 0
-    MOVB #%01001000,SC1CR2 ;TE = 1
+    MOVB #%00001000,SC1CR2 ;TE = 1
 
     CLI
 ;------------------------------------------------------------------------------
@@ -120,36 +120,30 @@ MAIN_LOOP:
 ;*******************************************************************************
 
 
-;------------------------------------------------------------------------------
-;   Subrutina CALCULO: la variable NIVEL_PROM contiene la medicion del tanque a
-;     una resolucion de 10 bits, esta subrutina convierte este valor a una escala
-;     con resolucion de 8 bits y lo guarda en la variable NIVEL. Ademas, a partir
-;     del NIVEL se obtiene el volumen del tanque en metros cubicos y se guarda
-;     en la variable VOLUMEN.
-;------------------------------------------------------------------------------
 
+;------------------------------------------------------------------------------
 CALCULO:
         Ldd #1023
         Ldx #255
         Idiv  ;x=4
         Ldd NIVEL_PROM
         Idiv ;x=NIVEL_PROM/4
-        Xgdx ;A=0, B= NIVEL_PROM/4
+        Xgdx
         Ldaa #20
         Mul
         Ldx #255
         Idiv
-        Cpx #15 ;Maxima altura
+	Xgdx
+        Cmpb #15 ;Maxima altura
         Bls get_V
-        Ldx #15
+        Ldab #15
 
-get_V:  Xgdx  ;Tenemos en B el valor del nivel
+get_V:
         Stab NIVEL
         ldaa #7 ;Area real es 7.07 pero se redondea
         Mul
-        Std VOLUMEN
+        Stab VOLUMEN
         Rts
-
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
@@ -276,17 +270,18 @@ FIN_DETERMINE:
 ;     variable NIVEL_PROM. Ademas inicia el siguiente ciclo de conversion.
 ;------------------------------------------------------------------------------
 ATD0_ISR:
-    LDD ADR00H
-    ADDD ADR01H
-    ADDD ADR02H
-    ADDD ADR03H
-    ADDD ADR04H
-    ADDD ADR05H ;En D se tiene la sumatoria de las mediciones al canal 0 del ATD.
-    LDX #6 ;carga el divisor de 6 para calcular el promedio
-    IDIV ;X <-- D/X = sumatoria/6 = promedio
-    STX NIVEL_PROM ;se almacena el promedio en la variable designada.
-    MOVB #$80,ATD0CTL5 ;al escribir a ATD0CTL5 se inicia un nuevo ciclo de conversion
-    RTI
+    Ldd ADR00H
+    Addd ADR01H
+    Addd ADR02H
+    Addd ADR03H
+    Addd ADR04H
+    Addd ADR05H
+    ;Tenemos en RR1 la suma de los 6 numeros
+    Ldx #6
+    Idiv ;X = D/X para el promedio
+    Stx NIVEL_PROM ;Dado por el enunciado para guardar el promedio
+    Movb #$80,ATD0CTL5 ;escribimos para ques se repita el proceso
+    Rti
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
@@ -296,21 +291,25 @@ ATD0_ISR:
 ;     cuando el contador CONT_RTI (precargado con 100) alcanza un valor de 0, se
 ;     habilita la interrupcion del SCI1 y se inicia una transmision.
 ;------------------------------------------------------------------------------
+
+    
+    
 RTI_ISR:
 	Bset CRGFLG %10000000  ;quitamos la bandera de interrupcion
     	Tst CONT_RTI
     	Beq Transmitir
     	Dec CONT_RTI
-    	Bra FIN_RTI
+    	Bra Fin_RTI
 
 Transmitir:
-    	Movb #100,CONT_RTI  ;reiniciamos cuenta
-   	Movw #MENSAJE,PRINT_PTR ;se carga el inicio del mensaje al puntero de impresion.
-    	Ldaa SC1SR1 ;primer paso para iniciar transmision
-    	Movb #$0C,SC1DRL ;para iniciar, empezamos con NEW PAGE
-FIN_RTI:
-    	Rti
+        Bset SC1CR2 %01000000 ;Interrupciones de transmisor: TCIE = 1
+        Movw #MENSAJE,Puntero ;se carga el inicio del mensaje al puntero de impresion.
+        Ldaa SC1SR1 ;primer paso para iniciar transmision
+        Movb #$0C,SC1DRL ;para iniciar transmision, empezamos con NEW PAGE
+	Movb #100,CONT_RTI  ;reiniciamos cuenta
 
+Fin_RTI:
+    	Rti
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
@@ -319,25 +318,25 @@ FIN_RTI:
 ;     todo el mensaje se deshabilita la interrupcion.
 ;------------------------------------------------------------------------------
 SCI_ISR:
-    LDX PRINT_PTR ;se carga el puntero de impresion de bytes
+    LDX Puntero ;se carga el puntero de impresion de bytes
     LDAA 1,X+ ;se obtiene el caracter que se debe imprimir.
     CMPA #EOM ;se comprueba que el caracter no sea el final de la hilera de caracteres
     BEQ MENSAJES ;si es el final, se deben revisar los casos especiales de impresion
     LDAB SC1SR1 ;primer paso para iniciar transmision
     STAA SC1DRL ;se escribe el dato a transmitir para iniciar la transmision.
-    STX PRINT_PTR ;se almacena el puntero de impresion.
+    STX Puntero ;se almacena el puntero de impresion.
     BRA FIN_SCI ;se termina la subrutina y se espera a que vuelva a interrumpir luego de transmitir el byte.
 MENSAJES:
     BRSET FLAGS %00000001 SCI_OFF ;Si DONE = 1 no hay nada mas por imprimir y se debe desahibilitar la interrupcion SCI
     BRCLR FLAGS %00000010 SCI_OFF ;Si MSG = 0 es porque no hay que imprimir ningun mensaje adicional.
     BRCLR FLAGS %00000100 PRINT_ALARM ;Si MSG_SEL = 0 el mensaje que se debe imprimir es el de alarma.
 
-    MOVW #MSG_FULL,PRINT_PTR ;se carga el mensaje de tanque lleno
+    MOVW #MSG_FULL,Puntero ;se carga el mensaje de tanque lleno
     BSET FLAGS %00000001 ;DONE <-- 1 para que en el proximo caracter EOM se termine el refrescamiento de la pantalla.
     BRA FIN_SCI
 
 PRINT_ALARM:
-    MOVW #MSG_ALARM,PRINT_PTR ;se carga el mensaje de alarma
+    MOVW #MSG_ALARM,Puntero ;se carga el mensaje de alarma
     BSET FLAGS %00000001 ;DONE <-- 1 para que en el proximo caracter EOM se termine el refrescamiento de la pantalla.
     BRA FIN_SCI
 
@@ -347,3 +346,4 @@ SCI_OFF:
 
 FIN_SCI:
     RTI
+;------------------------------------------------------------------------------
