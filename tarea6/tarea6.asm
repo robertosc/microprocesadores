@@ -3,7 +3,11 @@
 ;   Fecha: 21 de enero del 2021
 ;   Autor: Roberto Sánchez y Luis guillermo Ramírez
 ;
-;   Descripcion:
+;   Descripcion: Este rograma tien como fin simula un sensor de nivel de agua
+;   el cual cuando el nivel de agua llega a un 15% debe encender una bomba de
+;   agua, en este caso la bomba se simula por medio de un LED. Cuando el nivel
+;   llega al 90%, la bomba se apaga. Se  tienen disntinos estados que muestran
+;   distintas alarmas en los mensajes.
 ;##############################################################################
 #include registers.inc
 
@@ -14,16 +18,8 @@ LF:             equ $0A ;line feed
 NP:             equ $0C ;new page
 SUB:            equ $1A ;control substitute
 ;------------------------------------------------------------------------------
-;     Declaracion de las estructuras de datos y vectores de interrupcion
+;     		Estructuras de datos e interrupciones
 ;------------------------------------------------------------------------------
-;Vectores de interrupcion:
-                org $FFD2
-                dw ATD0_ISR ;direccion de la subrutina de servicio a interrupcion ATD0.
-                org $FFD4
-                dw SCI_ISR ;direccion de la subrutina de servicio a interrupcion SCI1.
-                org $FFF0
-                dw RTI_ISR  ;direccion de la subrutina de servicio a interrupcion RTI.
-
 ;Estructuras de datos:
                 org $1010
 NIVEL_PROM:     ds 2 ;almacena el promedio de las 6 mediciones a 10 bits del ATD.
@@ -35,7 +31,7 @@ BCD_H:          ds 1 ;miles y centenas en BCD
 BCD_L:          ds 1 ;decenas y unidades en BCD
 LOW:            ds 1 ;variable temporal
 Puntero:      ds 2 ;con este puntero se maneja la impresion caracter por caracter.
-BANDERAS:          ds 1 ; X:X:X:X:X:MSG_SEL:MSG:DONE
+BANDERAS:          ds 1 ; X:X:X:X:X:SEL:MSG:OK
 
 ;Mensajes:
 MENSAJE:        db SUB
@@ -60,18 +56,27 @@ ALARMA_BAJO:      db CR,LF,CR,LF
 
 FULL:       fcc "                    Tanque vaciando, Bomba Apagada."
                 db EOM
+                
+;interrupciones:
+                org $FFD2
+                dw ATD0_ISR ;direccion de la subrutina de servicio a interrupcion ATD0.
+                org $FFD4
+                dw SCI_ISR ;direccion de la subrutina de servicio a interrupcion SCI1.
+                org $FFF0
+                dw RTI_ISR  ;direccion de la subrutina de servicio a interrupcion RTI.
+
 ;*******************************************************************************
 ;                             Programa principal
 ;*******************************************************************************
-;------------------------------------------------------------------------------
-;                          Configuracion del hardware
-;------------------------------------------------------------------------------
+;
+;configs
     ORG $2000
-;Configuracion de la salida SAL: LED en puerto PORTB0.
+
+;LEDS
     MOVB #$01,DDRB ;se configura PORTB0 como salida
     bset DDRJ,$02
 
-;Configuracion del ATD0:
+;ATD0:
     MOVB #$C2,ATD0CTL2 ;habilita convertidor ATD0, borrado rapido de banderas y las interrupciones.
     LDAA #160
 
@@ -82,14 +87,14 @@ CONFIG_ATD:
     MOVB #$10,ATD0CTL4 ;f_sample = 700 kHz con preescalador 16
     MOVB #$80,ATD0CTL5 ;justifica a la derecha
 
-;Configuracion del RTI:
+;RTI:
     MOVB #$54,RTICTL
     BSET CRGINT,#$80
 
-;Configuracion del Serial Communication Interface (SCI1):
-    MOVW #39,SC1BDH 		;Baud Rate = 38400
-    MOVB #%00000000,SC1CR1 	;M = 0, ParityEnable = 0
-    MOVB #%00001000,SC1CR2 	;TE = 1
+;Serial Communication Interface (SCI1):
+    MOVW #39,SC1BDH                 ;Baud Rate = 38400
+    MOVB #$00,SC1CR1         ;M = 0, ParityEnable = 0
+    MOVB #$08,SC1CR2         ;TE = 1
 
     CLI
 ;------------------------------------------------------------------------------
@@ -147,20 +152,20 @@ get_V:
 
 LED_ON:
         movb #$00,PTJ        ;habilita led
-	bset PORTB %00000001 ;enciende la bomba
-        bclr BANDERAS %00000100 ;MSG_SEL <--- 0 para indicar que el mensaje a imprimir es el de alarma
+        bset PORTB,#$01 ;enciende la bomba
+        bclr BANDERAS,#$04 ;MSG_SEL <--- 0 para indicar que el mensaje a imprimir es el de alarma
         bra PRINT
 
 LED_OFF:
-	movb #$02,PTJ ;deshabilida leds
-        bclr PORTB %00000001 ;se apaga la bomba
-        bset BANDERAS %00000100 ;MSG_SEL <--- 1 para indicar que el mensaje a imprimir es el de tanque lleno
+        movb #$02,PTJ ;deshabilida leds
+        bclr PORTB,#$01 ;se apaga la bomba
+        bset BANDERAS,#$04 ;MSG_SEL <--- 1 para indicar que el mensaje a imprimir es el de tanque lleno
 PRINT:
-        bset BANDERAS %00000010 ;MSG <-- 1 para indicar que hay que imprimir otro mensaje
+        bset BANDERAS,#$02 ;MSG <-- 1 para indicar que hay que imprimir otro mensaje
          rts
 
 NO_PRINT:
-        bclr BANDERAS %00000010 ;MSG <-- 0 para indicar que NO hay que imprimir otro mensaje
+        bclr BANDERAS,#$02 ;MSG <-- 0 para indicar que NO hay que imprimir otro mensaje
         rts
 
 ;------------------------------------------------------------------------------
@@ -276,19 +281,19 @@ SCI_ISR:
     ldx Puntero         ;Puntero para imprimir
     ldaa 1,X+             ; dato a imprimir
     cmpa #EOM                 ; revisa que o sea final
-    beq DET_MSG 	;final
+    beq ESTADO         ;final
     ldab SC1SR1 ;inicia transmision
     staa SC1DRL
-    stx Puntero 	;puntero de impresion.
-    bra FIN_SCI 	;se termina la subrutina y se espera a que vuelva a interrumpir luego de transmitir el byte.
+    stx Puntero         ;puntero de impresion.
+    bra FIN_SCI         ;se termina la subrutina
 
-DET_MSG:
+ESTADO:
 
-    brset BANDERAS,$01,SCI_OFF ;Revisa si ya terminó de imprimir
-    brclr BANDERAS,$02,SCI_OFF
+    brset BANDERAS,$01,CERRAR ;Revisa si ya terminó de imprimir
+    brclr BANDERAS,$02,CERRAR
     brclr BANDERAS,$04,ALARMA ;Se debe imprimir es el de alarma.
 
-    bset BANDERAS,$01 ;Pone bandera de final
+    bset BANDERAS,$01 ;bandera ok
     movw #FULL,Puntero ;Tanque lleno
 
     bra FIN_SCI
@@ -300,10 +305,9 @@ ALARMA:
 
     bra FIN_SCI
 
-SCI_OFF:
-    bclr SC1CR2,$40 ;Se deshabilita la interrupcion SPI. TCIE = 0.
+CERRAR:
+    bclr SC1CR2,$40 ;Se deshabilita SPI
     bclr BANDERAS,$01 ;No terminada
 
 FIN_SCI:
     rti
-
