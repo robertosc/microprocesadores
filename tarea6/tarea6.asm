@@ -1,7 +1,7 @@
 ;##############################################################################
 ;                                 Tarea #6
 ;   Fecha: 21 de enero del 2021
-;   Autor: Roberto Sánchez y Luis guillermo Ramírez
+;   Autor: Roberto SÃ¡nchez y Luis guillermo RamÃ­rez
 ;
 ;   Descripcion:
 ;##############################################################################
@@ -34,7 +34,7 @@ CONT_RTI:       ds 1 ;permite generar la cadencia de 1 seg en el RTI para la tra
 BCD_H:          ds 1 ;miles y centenas en BCD
 BCD_L:          ds 1 ;decenas y unidades en BCD
 LOW:            ds 1 ;variable temporal
-PRINT_PTR:      ds 2 ;con este puntero se maneja la impresion caracter por caracter.
+Puntero:      ds 2 ;con este puntero se maneja la impresion caracter por caracter.
 BANDERAS:          ds 1 ; X:X:X:X:X:MSG_SEL:MSG:DONE
 
 ;Mensajes:
@@ -74,7 +74,7 @@ FULL:       fcc "                    Tanque vaciando, Bomba Apagada."
 ;Configuracion del ATD0:
     MOVB #$C2,ATD0CTL2 ;habilita convertidor ATD0, borrado rapido de banderas y las interrupciones.
     LDAA #160
-    
+
 CONFIG_ATD:
     DBNE A,CONFIG_ATD ;10 us, tiempo de ATD.
 
@@ -109,37 +109,39 @@ MAIN:
 
 ;------------------------------------------------------------------------------
 CALCULO_NIVEL:
-        Ldd #1023
-        Ldx #255
-        Idiv  ;x=4
+        Ldd #1023 ;Maximo numero de 10 bits
+        Ldx #255   ; Maximo numero de 8 bits
+        Idiv  ;x=4   ;Obtenemos la razon entre estas dos escalas (4)
         Ldd NIVEL_PROM
         Idiv ;x=NIVEL_PROM/4
-        Xgdx
-        Ldaa #20
+        Xgdx ;D=NIVEL_PROM/4
+        Ldaa #20  ;Maximo de nivel medido
         Mul
         Ldx #255
-        Idiv
-        Xgdx
-        Cmpb #15 ;Maxima altura
+        Idiv  ;Con eso se obtiene el valor nivel en en X
+        Xgdx  ;Se pasa a D
+        Cmpb #15 ;Maxima altura permitida es 15
         Bls get_V
         Ldab #15
 
 get_V:
         Stab NIVEL
         ldaa #7 ;Area real es 7.07 pero se redondea
-        Mul
+        Mul ;V= A*H
         Stab VOLUMEN
-        
 
-        cmpb #95
+        ;Realizamos las comparaciones de nivel
+        cmpb #95  ;V>=95
         bhs LED_OFF
 
-        cmpb #16
+        cmpb #16 ;V<=95
         bls LED_ON
 
-        cmpb #32
+        cmpb #32 ;95>=V>=32
         bhs NO_PRINT
-
+        
+        
+        ;32>=V>=16
         brclr BANDERAS,$04,PRINT
         bra NO_PRINT
 
@@ -252,48 +254,50 @@ ATD0_ISR:
 ;------------------------------------------------------------------------------
 
 RTI_ISR:
-    BSET CRGFLG %10000000  ;reinicia la bandera de interrupcion
-    TST CONT_RTI
-    BEQ REFRESCAR
-    DEC CONT_RTI
-    BRA FIN_RTI
+    Bset CRGFLG %10000000  ;reinicia la bandera de interrupcion
+    Tst CONT_RTI
+    Beq REFRESCAR
+    Dec CONT_RTI
+    Bra FIN_RTI
 REFRESCAR:
-    MOVW #MENSAJE,PRINT_PTR ;se carga el inicio del mensaje al puntero de impresion.
-    BSET SC1CR2 %01000000 ;Interrupciones de transmisor: TCIE = 1
-    LDAA SC1SR1 ;primer paso para iniciar transmision
-    MOVB #NP,SC1DRL ;se escribe el dato a transmitir para iniciar la transmision.
-    MOVB #100,CONT_RTI ;se recarga el contador para la cadencia de 1 Hz.
+    Movb #100,CONT_RTI ;Volvemos al contador con 100
+    Bset SC1CR2 %01000000 ; TCIE = 1
+    Movw #MENSAJE,Puntero ;Puntero al inicio del mensaje
+    ;Iniciamos el proceso de transmision
+    Ldaa SC1SR1
+    Movb #NP,SC1DRL ;Transmitimos un new page solo para empezar el proceso
+
 FIN_RTI:
-    RTI
+    Rti
 
 ;------------------------------------------------------------------------------
 SCI_ISR:
 
-    ldx PRINT_PTR         ;Puntero para imprimir
+    ldx Puntero         ;Puntero para imprimir
     ldaa 1,X+             ; dato a imprimir
     cmpa #EOM                 ; revisa que o sea final
     beq DET_MSG 	;final
     ldab SC1SR1 ;inicia transmision
     staa SC1DRL
-    stx PRINT_PTR 	;puntero de impresion.
+    stx Puntero 	;puntero de impresion.
     bra FIN_SCI 	;se termina la subrutina y se espera a que vuelva a interrumpir luego de transmitir el byte.
 
 DET_MSG:
 
-    brset BANDERAS,$01,SCI_OFF ;Revisa si ya terminó de imprimir
+    brset BANDERAS,$01,SCI_OFF ;Revisa si ya terminÃ³ de imprimir
     brclr BANDERAS,$02,SCI_OFF
     brclr BANDERAS,$04,ALARMA ;Se debe imprimir es el de alarma.
 
     bset BANDERAS,$01 ;Pone bandera de final
-    movw #FULL,PRINT_PTR ;Tanque lleno
+    movw #FULL,Puntero ;Tanque lleno
 
     bra FIN_SCI
 
 ALARMA:
-movb #$01,PORTB;enciende el led
-    movw #ALARMA_BAJO,PRINT_PTR ;se carga el mensaje de alarma
+    movb #$01,PORTB;enciende el led
+    movw #ALARMA_BAJO,Puntero ;se carga el mensaje de alarma
     bset BANDERAS $01 ;Pone bandera de final
-    
+
     bra FIN_SCI
 
 SCI_OFF:
@@ -302,5 +306,4 @@ SCI_OFF:
 
 FIN_SCI:
     rti
-
 
