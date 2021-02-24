@@ -32,7 +32,7 @@ Num_Array:      ds 2  ;Todas las teclas guardadas
 CUENTA:         ds 1  ;Contador de tornillos para cada empaque.
 AcmPQ:          ds 1  ;Contador de empaques completados
 ValorVueltas:   ds 1  ;numero de vueltas definida por usuario
-NumVueltas:	ds 1
+NumVueltas:        ds 1
 TIMER_CUENTA:   ds 1  ;Conteo de tornillos por medio de interrupcion rti
 LEDS:           ds 1  ;PB1 para modo CONFIG, PB0 a modo RUN.
 BRILLO:         ds 1  ;Brillo elegido por el usuario de la pantalla
@@ -99,8 +99,8 @@ RUN_MSG2:       FCC "AcmPQ   CUENTA"
 
                org $3E70   ;Interrupcion RTI.
                dw RTI_ISR
-               org $3E4C   ;Interrupcion key wakeup puerto H.
-               dw PTH_ISR
+               ;org $3E4C   ;Interrupcion key wakeup puerto H.
+               ;dw PTH_ISR
                org $3E66   ;Interrupcion OC4.
                dw OC4_ISR
 
@@ -112,7 +112,7 @@ RUN_MSG2:       FCC "AcmPQ   CUENTA"
                 org $2000
 
     ; conf de interrupciones
-                bset CRGINT,$80         	;Habilita RTI
+                bset CRGINT,$80                 ;Habilita RTI
                 movb #$17,RTICTL              ;periodo 1.024 ms
 
                 BSET TSCR1,$80                 ;Modulo de timer.
@@ -134,6 +134,10 @@ RUN_MSG2:       FCC "AcmPQ   CUENTA"
                 movb #$FF,DDRK                 ;IO puerto K como salida (LCD)
                 movb #$04,DDRE                 ;IO PORTE4 como salida
 
+                ;Configuracion del ATD
+    		MOVB #$30,ATD0CTL3
+    		MOVB #$B9,ATD0CTL4
+    		MOVB #$87,ATD0CTL5
 
                 cli        ;interrupciones mascarables.
 ;------------------------------------------------------------------------------
@@ -171,10 +175,10 @@ RUN_MSG2:       FCC "AcmPQ   CUENTA"
                 Movb VMAX,TIMER_CUENTA
 
 
-                Ldd TCNT 		;Reajustar el output compare
-                Addd #60 		;50kHz
-                Std TC4 		;Valor a alcanzar.
-                Bset Banderas,$10 	;MODO_CONFIG activado
+                Ldd TCNT                 ;Reajustar el output compare
+                Addd #60                 ;50kHz
+                Std TC4                 ;Valor a alcanzar.
+                Bset Banderas,$10         ;MODO_CONFIG activado
 
                 ldx #iniDsp
                 inx
@@ -277,64 +281,37 @@ CALL_CONFIG:
 
 
 volver_main:    jmp MAIN
-
 ;------------------------------------------------------------------------------
-Send_Command:   psha                    ;se guarda a en pila
-                anda #$F0               ;mascara de parte alta
-                lsra                    ;deja limpios los dos bits menos significativos
-                lsra
-
-                staa PORTK              ;guarda a en portk
-                bclr PORTK,$01          ;modif bits menos significativos
-                bset PORTK,$02
-
-                movb D260uS,Cont_Delay  ;delay
-                jsr Delay
-
-                bclr PORTK,$02
-                pula                    ;trae a
-                anda #$0F               ;mascara parte baja
-                lsla
-                lsla
-
-                staa PORTK
-                bclr PORTK,$01
-                bset PORTK,$02
-
-                movb D260uS,Cont_Delay  ; delay
-                jsr Delay
-
-                bclr PORTK,$02
+; SUBRUTINAS EN ORDEN
+;------------------------------------------------------------------------------
+MODO_CONFIG:
+                movb NumVueltas, BIN1                       ;Movemos CatnPQ a bin1
+                brset Banderas,$04,DATA_CHECK           ;Revisa bandera arrayok
+                jsr TAREA_TECLADO                       ;Si no arrayok, va a teclado
                 rts
 
-;------------------------------------------------------------------------------
-Send_Data:
-                psha ;el dato se recibe en acumulador A y se protege para poder analizar sus nibbles por separado
-                anda #$F0 ;Se deja solo el nibble superior del dato
-                lsra
-                lsra ;se alinea nibble con bus datos en PORTK5-PORTK2.
-                staa PORTK ;se carga parte alta del dato en el bus de datos.
-                bset PORTK,$03 ;Se habilita el envio de dato y comunicacion con la LCD
-                movb D260us,Cont_Delay ;se inicia el retardo de 260us
-                jsr Delay
-                bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
-                pula ;se recupera el dato original de la pila
-                anda #$0F ;Se deja solo el nibble inferior del dato
-                lsla
-                lsla ;se alinea nibble con bus datos en PORTK5-PORTK2.
-                staa PORTK ;se carga parte baja del dato en el bus de datos.
-                bset PORTK,$03 ;Se habilita envio de datos y comunicacion con la LCD
-                movb D260us,Cont_Delay ;se inicia el retardo de 260us.
-                jsr Delay
-                bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
+DATA_CHECK:
+                jsr BCD_BIN                              ;pasa de bcd a bin
+                ldaa #3                                 ;limites
+                cmpa ValorVueltas
+                bgt INVALIDO
+                ldaa #23
+                cmpa ValorVueltas
+                bge VALIDO
+
+INVALIDO:                                                ;caso en que el valor no esta en rango
+                bclr Banderas,$04
+                Clr ValorVueltas
+                Clr Num_Array
                 rts
 
-;------------------------------------------------------------------------------
-Delay:
-                tst Cont_Delay      ;Espera hasta que OC4 disminuya
-                bne Delay
+VALIDO:
+                bclr Banderas, $04                       ;caso en rango, se guarda
+                movb ValorVueltas,NumVueltas
+                movb ValorVueltas,BIN1
+                Clr ValorVueltas
+                Clr Num_Array
                 rts
-
 
 ;------------------------------------------------------------------------------
 BCD_BIN:        ldx #Num_Array
@@ -357,66 +334,27 @@ DECENA:
                 stab ValorVueltas
 
                 rts
-
-
+                
 ;------------------------------------------------------------------------------
-BIN_BCD:
+RTI_ISR:        bset CRGFLG %10000000                 ;borra bandera de interrupcion RTI
+                tst Cont_Reb
+                beq TIMER                       ;si llegaron los rebotes a 0, se termina la rubrutina
+                dec Cont_Reb
 
-                Ldab #7  ; Contador B=15
-                Clr BCD_L
+		                 ;Solo se decrementa si TIMER CUENTA no es cero
 
-lazo:
-                Lsla
-                Rol BCD_L  ;Lo mismo para la variable BCD_L y BCD_H
-                Psha
-
-                Ldaa BCD_L ;Cargamos en A el BCD_L
-                Anda #$0F  ;Tomamos solo en cuenta los 4LSB
-                Cmpa #5   ;Comparamos con 5
-                Blo men031  ;Si es menor, salte a men031
-                Adda #3  ;En caso de mayor, sume 3
-
-men031
-                Staa LOW  ;Guardamos temporalmente el resultado anterior
-
-                Ldaa BCD_L
-                Anda #$F0 ;En A tenemos cargado del bit 4 al 7
-                Cmpa #$50  ;Comparamos con $50
-                Blo men301
-                Adda #$30   ;Si es mayor, sume 30
-
-men301
-                Adda LOW   ;Se suman los bits para obtener los 4 LSB de resultado
-                Staa BCD_L  ;Se guarda el resultado
-                Pula
-                Dbne b, lazo
-
-                Lsla
-                Rol BCD_L
-
-                Rts
+TIMER:          tst CONT_200
+                bne NO_RESET
+		;Caso en que es cero y se reinicia
+                Movb #200,CONT_200 ;Volvemos al contador con 200
+                Movb #$87,ATD0CTL5
+                Bra FIN_RTI
 
 
-;------------------------------------------------------------------------------
-CONV_BIN_BCD:
-                Ldaa BIN1
-                Jsr BIN_BCD ;Pasamos BIN1 a BCD
-                Ldaa BCD_L
-                Cmpa #10
-                Bhs mayor1
-                Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
+NO_RESET:   	dec CONT_200                          ;Decrementamos el contador de rebotes si aun no ha llegado a cero
 
-mayor1          Staa BCD1 ;Guardamos el valor en BCD1
-                Ldaa BIN2
-                Jsr BIN_BCD ;Pasamos BIN2 a BCD
-                Ldaa BCD_L
-                Cmpa #10
-                Bhs mayor2
-                Adda #$B0 ;Si es de un solo digito, agrega B en decenas
 
-mayor2          Staa BCD2 ;Guardamos en BCD2
-                Rts
-
+FIN_RTI:        Rti
 
 ;------------------------------------------------------------------------------
 TAREA_TECLADO:
@@ -532,90 +470,88 @@ end_formar:     movb #$FF,Tecla_IN
 
 
 ;------------------------------------------------------------------------------
-MODO_CONFIG:
-                movb ValorVueltas, BIN1                       ;Movemos CatnPQ a bin1
-                brset Banderas,$04,DATA_CHECK           ;Revisa bandera arrayok
-                jsr TAREA_TECLADO                       ;Si no arrayok, va a teclado
-                rts
 
-DATA_CHECK:
-                jsr BCD_BIN                              ;pasa de bcd a bin
-                ldaa #3                                 ;limites
-                cmpa ValorVueltas
-                bgt INVALIDO
-                ldaa #23
-                cmpa ValorVueltas
-                bge VALIDO
-
-INVALIDO:                                                ;caso en que el valor no esta en rango
-                bclr Banderas,$04
-                bclr ValorVueltas,$FF
-                rts
-
-VALIDO:
-                bclr Banderas, $04                       ;caso en rango, se guarda
-                movb ValorVueltas,NumVueltas
-		movb ValorVueltas,BIN1
-                rts
+ATD_ISR:
 
 
 ;------------------------------------------------------------------------------
-MODO_RUN:
-                Tst TIMER_CUENTA         ;si timer cuenta es cero
-                Bne Fin_Run                 ;si no lo es, se retorna
 
-                ;Caso en que timer cuenta es cero
-
-                Movb VMAX,TIMER_CUENTA ;se recarga con vmax
-                Inc CUENTA                 ;incrementamos cuenta
-                Ldaa CUENTA ;
-                Cmpa ValorVueltas ;
-                Bne Fin_Run                 ;si cant!=cuenta
-                Inc AcmPQ                 ;se incrementa AcmPQ
-                Bclr CRGINT %10000000         ;se deshabilitamos RTI
-                Movb #$04,PORTE         ;activa el relay
-                Ldaa #100
-                Cmpa AcmPQ
-                Bne Fin_Run                 ; retorna si no llega a 100
-                CLR AcmPQ                 ;si se llega a 100, hay rebase
-Fin_Run:
-                MOVB CUENTA,BIN1
-                MOVB AcmPQ,BIN2
-                RTS
+Competencia:
 
 
 ;------------------------------------------------------------------------------
-Cargar_LCD:     ldaa ADD_L1                           ;inicio de linea
-                jsr Send_Command                ;envía comando
-                movb D40uS,Cont_Delay           ;delay
-                jsr Delay
 
-LINEA1:         ldaa 1,x+                         ;Se va cargando mensaje
-                cmpa #$00
-                beq CARGAR_LINEA2               ;Se pasa a cargar linea 2
-
-                jsr Send_Data
-
-                movb D40uS,Cont_Delay
-                jsr Delay
-                bra LINEA1
+PANT_CTRL:
 
 
-CARGAR_LINEA2:  ldaa ADD_L2                     ;inicio linea 2
-                jsr Send_Command
-                movb D40uS,Cont_Delay
-                jsr Delay
+;------------------------------------------------------------------------------
+
+CALCULAR:
 
 
-LINEA2:         ldaa 1,y+                       ; Se va cargando mensaje
-                cmpa #$00
-                beq TERMINA_LCD
-                jsr Send_Data
-                movb D40uS,Cont_Delay           ; delay
-                jsr Delay
-                bra LINEA2
+;------------------------------------------------------------------------------
 
-TERMINA_LCD:    rts
+TCNT_ISR:
+
+
+;------------------------------------------------------------------------------
+CONV_BIN_BCD:
+                Ldaa BIN1
+                Jsr BIN_BCD ;Pasamos BIN1 a BCD
+                Ldaa BCD_L
+                Cmpa #10
+                Bhs mayor1
+                Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
+
+mayor1          Staa BCD1 ;Guardamos el valor en BCD1
+                Ldaa BIN2
+                Jsr BIN_BCD ;Pasamos BIN2 a BCD
+                Ldaa BCD_L
+                Cmpa #10
+                Bhs mayor2
+                Adda #$B0 ;Si es de un solo digito, agrega B en decenas
+
+mayor2          Staa BCD2 ;Guardamos en BCD2
+                Rts
+
+
+;------------------------------------------------------------------------------
+BIN_BCD:
+
+                Ldab #7  ; Contador B=15
+                Clr BCD_L
+
+lazo:
+                Lsla
+                Rol BCD_L  ;Lo mismo para la variable BCD_L y BCD_H
+                Psha
+
+                Ldaa BCD_L ;Cargamos en A el BCD_L
+                Anda #$0F  ;Tomamos solo en cuenta los 4LSB
+                Cmpa #5   ;Comparamos con 5
+                Blo men031  ;Si es menor, salte a men031
+                Adda #3  ;En caso de mayor, sume 3
+
+men031
+                Staa LOW  ;Guardamos temporalmente el resultado anterior
+
+                Ldaa BCD_L
+                Anda #$F0 ;En A tenemos cargado del bit 4 al 7
+                Cmpa #$50  ;Comparamos con $50
+                Blo men301
+                Adda #$30   ;Si es mayor, sume 30
+
+men301
+                Adda LOW   ;Se suman los bits para obtener los 4 LSB de resultado
+                Staa BCD_L  ;Se guarda el resultado
+                Pula
+                Dbne b, lazo
+
+                Lsla
+                Rol BCD_L
+
+                Rts
+
 
 
 ;------------------------------------------------------------------------------
@@ -672,71 +608,7 @@ BCD2_vacio:     movb #$00,DISP1                       ;apaga 1 y 2
 
 return_7seg:
                 rts
-
-
-
-
-
-;------------------------------------------------------------------------------
-RTI_ISR:        bset CRGFLG %10000000                 ;borra bandera de interrupcion RTI
-                tst TIMER_CUENTA
-                beq REBOTES                          ;Si TIMER CUENTA es cero, pasamos a revisar los rebotes
-                dec TIMER_CUENTA                 ;Solo se decrementa si TIMER CUENTA no es cero
-
-REBOTES:        tst Cont_Reb
-                beq FIN_REB                        ;si llegaron los rebotes a 0, se termina la rubrutina
-                dec Cont_Reb                         ;Decrementamos el contador de rebotes si aun no ha llegado a cero
-
-FIN_REB:
-                Tst CONT_RTI
-    		Beq REFRESCAR
-    		Dec CONT_RTI
-    		Bra FIN_RTI
-REFRESCAR:
-   		Movb #CONT_200,CONT_RTI ;Volvemos al contador con 100
-                Movb #$80,ATD0CTL5
-FIN_RTI:
-   		Rti
-
-
-
-
-
-;------------------------------------------------------------------------------
-PTH_ISR:        Brset Banderas,$08,PH_CONFIG         ;Si esa en modo config no toma en cuenta PH0 Y PH1
-                Brclr PIFH $01 PTH1                 ;si es 1, se revisa por la siguiente fuente de interrupcion
-                ;CASO DE PH0
-                Bset PIFH $01                         ;apagamos las interrupciones de PH0
-                Clr CUENTA                         ;borramos cuenta
-                Bset CRGINT %10000000                 ;Habilita interrupciones de RTI
-                Clr PORTE                         ;apagamos el relay
-
-PTH1:
-                brclr PIFH $02 PH_CONFIG         ;Si no tiene PH1, revisa PH2
-                ;Caso de PH1
-                bset PIFH $02                         ;se apaga la bandera de la fuente de interrupcion
-                clr AcmPQ                         ;se limpia el acumulador
-PH_CONFIG:
-                Brclr PIFH $04 PTH3                 ;No hay PH3, revisa ph4
-                Bset PIFH $04                         ;se apaga la bandera de la fuente de interrupcion
-                Tst BRILLO
-                Beq PTH3                         ;Caso de brillo minimo, ya no se puede restar
-                Ldaa BRILLO
-                Suba #5
-                Staa BRILLO                         ;se le resta 5 a BRILLO
-PTH3:
-                Brclr PIFH $08 FIN_PTH                 ;no hay ph4, termina de revisar
-                Bset PIFH $08                         ;se apaga la fuente de interrupcion
-                Ldaa #100
-                Cmpa BRILLO
-                Beq FIN_PTH                         ;Maximo brillo posible, termina la subrutina
-                Ldaa BRILLO
-                Adda #5
-                Staa BRILLO                     ;se le suma 5 a BRILLO
-FIN_PTH:
-                Rti                             ;termina la subrutina
-
-
+                
 ;------------------------------------------------------------------------------
 OC4_ISR:
                 ldaa Cont_Delay                 ;Revisamos Cont_Delay para ver si hay que restarle
@@ -818,3 +690,128 @@ FIN_OC4:
                 addd #60                         ;60 por preestaclador 8
                 std TC4                         ;actualiza el nuevo valor a alcanzar.
                 rti
+                
+;------------------------------------------------------------------------------
+Cargar_LCD:     ldaa ADD_L1                           ;inicio de linea
+                jsr Send_Command                ;envía comando
+                movb D40uS,Cont_Delay           ;delay
+                jsr Delay
+
+LINEA1:         ldaa 1,x+                         ;Se va cargando mensaje
+                cmpa #$00
+                beq CARGAR_LINEA2               ;Se pasa a cargar linea 2
+
+                jsr Send_Data
+
+                movb D40uS,Cont_Delay
+                jsr Delay
+                bra LINEA1
+
+
+CARGAR_LINEA2:  ldaa ADD_L2                     ;inicio linea 2
+                jsr Send_Command
+                movb D40uS,Cont_Delay
+                jsr Delay
+
+
+LINEA2:         ldaa 1,y+                       ; Se va cargando mensaje
+                cmpa #$00
+                beq TERMINA_LCD
+                jsr Send_Data
+                movb D40uS,Cont_Delay           ; delay
+                jsr Delay
+                bra LINEA2
+
+TERMINA_LCD:    rts
+
+
+;------------------------------------------------------------------------------
+Delay:
+                tst Cont_Delay      ;Espera hasta que OC4 disminuya
+                bne Delay
+                rts
+
+;------------------------------------------------------------------------------
+
+Send_Command:   psha                    ;se guarda a en pila
+                anda #$F0               ;mascara de parte alta
+                lsra                    ;deja limpios los dos bits menos significativos
+                lsra
+
+                staa PORTK              ;guarda a en portk
+                bclr PORTK,$01          ;modif bits menos significativos
+                bset PORTK,$02
+
+                movb D260uS,Cont_Delay  ;delay
+                jsr Delay
+
+                bclr PORTK,$02
+                pula                    ;trae a
+                anda #$0F               ;mascara parte baja
+                lsla
+                lsla
+
+                staa PORTK
+                bclr PORTK,$01
+                bset PORTK,$02
+
+                movb D260uS,Cont_Delay  ; delay
+                jsr Delay
+
+                bclr PORTK,$02
+                rts
+
+;------------------------------------------------------------------------------
+Send_Data:
+                psha ;el dato se recibe en acumulador A y se protege para poder analizar sus nibbles por separado
+                anda #$F0 ;Se deja solo el nibble superior del dato
+                lsra
+                lsra ;se alinea nibble con bus datos en PORTK5-PORTK2.
+                staa PORTK ;se carga parte alta del dato en el bus de datos.
+                bset PORTK,$03 ;Se habilita el envio de dato y comunicacion con la LCD
+                movb D260us,Cont_Delay ;se inicia el retardo de 260us
+                jsr Delay
+                bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
+                pula ;se recupera el dato original de la pila
+                anda #$0F ;Se deja solo el nibble inferior del dato
+                lsla
+                lsla ;se alinea nibble con bus datos en PORTK5-PORTK2.
+                staa PORTK ;se carga parte baja del dato en el bus de datos.
+                bset PORTK,$03 ;Se habilita envio de datos y comunicacion con la LCD
+                movb D260us,Cont_Delay ;se inicia el retardo de 260us.
+                jsr Delay
+                bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
+                rts
+
+
+
+
+;------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+;       Esto es de tareas viejas
+
+;------------------------------------------------------------------------------
+MODO_RUN:
+                Tst TIMER_CUENTA         ;si timer cuenta es cero
+                Bne Fin_Run                 ;si no lo es, se retorna
+
+                ;Caso en que timer cuenta es cero
+
+                Movb VMAX,TIMER_CUENTA ;se recarga con vmax
+                Inc CUENTA                 ;incrementamos cuenta
+                Ldaa CUENTA ;
+                Cmpa ValorVueltas ;
+                Bne Fin_Run                 ;si cant!=cuenta
+                Inc AcmPQ                 ;se incrementa AcmPQ
+                Bclr CRGINT %10000000         ;se deshabilitamos RTI
+                Movb #$04,PORTE         ;activa el relay
+                Ldaa #100
+                Cmpa AcmPQ
+                Bne Fin_Run                 ; retorna si no llega a 100
+                CLR AcmPQ                 ;si se llega a 100, hay rebase
+Fin_Run:
+                MOVB CUENTA,BIN1
+                MOVB AcmPQ,BIN2
+                RTS
