@@ -1,16 +1,16 @@
 ;##############################################################################
 ;                                 Tarea #5
 ;   Fecha: 14 de febrero 2021
-;   Autor: Luis Guillermo RamÌrez y Roberto S·nchez
+;   Autor: Luis Guillermo Ram√≠rez y Roberto S√°nchez
 ;
-;   Descripcion: El programa en cuestiÛn simula una sistema capaz de tomar como
-;   entrada un valor numÈrico entre 25 y 85, el c˙al cuando se carga con Enter,
+;   Descripcion: El programa en cuesti√≥n simula una sistema capaz de tomar como
+;   entrada un valor num√©rico entre 25 y 85, el c√∫al cuando se carga con Enter,
 ;   le indica al sistema que empiece un conteo desde 0 hasta el valor indicado
-;   aumentando a una frecuencia de 3Hz. Cuando llega al valor m·ximo se detiene
-;   hasta que se activa la interrupciÛn PH0. Se lleva un conteo de cuantas cuentas
-;   se llevan que se puede reiniciar con el botÛn PH1. Adem·s los botones PH2 y
+;   aumentando a una frecuencia de 3Hz. Cuando llega al valor m√°ximo se detiene
+;   hasta que se activa la interrupci√≥n PH0. Se lleva un conteo de cuantas cuentas
+;   se llevan que se puede reiniciar con el bot√≥n PH1. Adem√°s los botones PH2 y
 ;   PH3 controlan el brillo de la pantalla de 7 segmentos. Con el dip switch 7
-;   se puede mover entre modos de RUN o de ConfiguraciÛn.
+;   se puede mover entre modos de RUN o de Configuraci√≥n.
 ;
 ;##############################################################################
 #include registers.inc
@@ -75,8 +75,8 @@ CLEAR_LCD:      db $01  ;comando para limpiar el LCD
 ADD_L1:         db $80  ;direccion inicio de linea 1
 ADD_L2:         db $C0  ;direccion inicio de linea 2
 
-DISPONIBLES:    ds 2
-DEISPONIBLES_2: ds 2
+DISPONIBLES1:    ds 2
+DEISPONIBLES2: ds 2
 
                 org $1040
 Teclas:         db $01,$02,$03,$04,$05,$06,$07,$08,$09,$0B,$00,$0E ;valores de las teclas
@@ -100,14 +100,14 @@ EOM:            equ $00
 
 ; MENSAJES
                 org $1070
+MSG_LIBRE1:     fcc "RunMeter 623"
+                db EOM
+MSG_LIBRE2:     fcc "   MODO LIBRE   "
+                db EOM
+                
 MSG_COMPE1:    	fcc "M.COMPETENCIA"
                 db EOM
 MSG_COMPE2:     fcc "VUELTA    VELOC"
-                db EOM
-                
-MSG_LIBRE1:     fcc "RunMetter 623"
-                db EOM
-MSG_LIBRE2:     fcc "   MODO LIBRE   "
                 db EOM
                 
 MSG_CONFIG1:    fcc "  MODO CONFIG   "
@@ -115,7 +115,7 @@ MSG_CONFIG1:    fcc "  MODO CONFIG   "
 MSG_CONFIG2:    fcc "  NUM VUELTAS   "
                 db EOM
                 
-MSG_ESPERA:     fcc "  ERSPERANDO...  "
+MSG_ESPERA:     fcc "  ESPERANDO...  "
                 db EOM
                 
 MSG_CALCULANDO: fcc "  CALCULANDO... "
@@ -124,21 +124,29 @@ MSG_CALCULANDO: fcc "  CALCULANDO... "
 MSG_ALERTA1:    fcc "** VELOCIDAD **"
                 db EOM
 
-MSG_ALERTA2:    fcc "FUERA DE RANGO*
+MSG_ALERTA2:    fcc "*FUERA DE RANGO*"
                 db EOM
                 
 MSG_RESUMEN:    fcc "  MODO RESUMEN  "
-		db EOMAL
+		db EOM
 ;------------------------------------------------------------------------------
 ;                         Vectores de interrupcion:
 ;------------------------------------------------------------------------------
 
-               org $3E70   ;Interrupcion RTI.
-               dw RTI_ISR
-               org $3E4C   ;Interrupcion key wakeup puerto H.
-               dw PTH_ISR
-               org $3E66   ;Interrupcion OC4.
-               dw OC4_ISR
+               	org $3E70   ;Interrupcion RTI.
+               	dw RTI_ISR
+               	org $3E4C   ;Interrupcion key wakeup puerto H.
+               	dw PTH_ISR
+               	org $3E66   ;Interrupcion OC4.
+               	dw OC4_ISR
+               	org $3E52
+               	dw ATD_ISR
+               	org $3E5E
+               	dw TCNT_ISR
+               	org $3E4C   ;direccion del vector de interrupcion PTH.
+         	dw CALCULAR ;direccion de la subrutina de servicio a interrupcion PTH.
+
+               
 
 
 
@@ -148,7 +156,7 @@ MSG_RESUMEN:    fcc "  MODO RESUMEN  "
                 org $2000
 
     ; conf de interrupciones
-                bset CRGINT,$80         	;Habilita RTI
+                bset CRGINT,$80                 ;Habilita RTI
                 movb #$17,RTICTL              ;periodo 1.024 ms
 
                 BSET TSCR1,$80                 ;Modulo de timer.
@@ -166,12 +174,22 @@ MSG_RESUMEN:    fcc "  MODO RESUMEN  "
 
                 movb #$FF,DDRB                 ;LEDS y pantalla de 7 segmentos
                 movb #$0F,DDRP                 ;Habilitador Segmentos
-                bset DDRJ,$02                 ;Habilita LEDS
+                bset DDRJ,$02                  ;Habilita LEDS
                 movb #$FF,DDRK                 ;IO puerto K como salida (LCD)
                 movb #$04,DDRE                 ;IO PORTE4 como salida
 
+                MOVB #$C2,ATD0CTL2 ;habilita convertidor ATD0, borrado rapido de banderas y las interrupciones.
+    		LDAA #160
+    		
+CONFIG_ATD:
+                DBNE A,CONFIG_ATD ;10 us, tiempo de ATD.
+                
+                
+                MOVB #$30,ATD0CTL3 ;ciclo de 6 conversiones
+   		MOVB #$10,ATD0CTL4 ;f_sample = 700 kHz con preescalador 16
+    		MOVB #$80,ATD0CTL5 ;justifica a la derecha
 
-                cli        ;interrupciones mascarables.
+		cli        ;interrupciones mascarables.
 ;------------------------------------------------------------------------------
 ;                       Inicializacion de variables
 ;------------------------------------------------------------------------------
@@ -183,9 +201,17 @@ MSG_RESUMEN:    fcc "  MODO RESUMEN  "
                 Clr CONT_7SEG
                 Clr CONT_TICKS
                 Clr CONT_DIG
-                Clr BRILLO
+                Clr BRILLO       ; brillo max
+                clr VUELTAS
+                clr ValorVueltas
+                clr NumVueltas
+                clr VELOC
+                clr VELPROM
+                clr Banderas
+                movw #0,TICK_EN
+                movw #0,TICK_DIS
 
-                Movb #$02,LEDS
+                Movb #$02,LEDS     ;encender led pb1
                 Movb SEGMENT,DISP3 ;DISP3 genera un 0
                 Movb SEGMENT,DISP4 ;para tener DISP4 produciendo un 0
 
@@ -200,19 +226,21 @@ MSG_RESUMEN:    fcc "  MODO RESUMEN  "
 
 
 ;Programa:
-                Clr ValorVueltas               ;limpia variables
-                Clr CUENTA
-                Clr AcmPQ
+                               ;limpia variables
+
                 Clr Banderas
-                Movb VMAX,TIMER_CUENTA
 
 
-                Ldd TCNT 		;Reajustar el output compare
-                Addd #60 		;50kHz
-                Std TC4 		;Valor a alcanzar.
-                Bset Banderas,$10 	;MODO_CONFIG activado
+                bset TIE,$10
+                Ldd TCNT                 ;Reajustar el output compare
+                Addd #60                 ;50kHz
+                Std TC4                 ;Valor a alcanzar.
+                Bset Banderas,$10         ;MODO_CONFIG activado
 
-                ldx #iniDsp
+
+;-------------------------------------------------------------------------------
+
+		ldx #iniDsp
                 inx
                 clrb
 
@@ -229,23 +257,12 @@ INITIALIZE_LCD:
                 movb D2ms,Cont_Delay    ;delay
                 jsr Delay
 
-
 ;------------------------------------------------------------------------------
 MAIN:
-                tst ValorVueltas
-                beq ESTADO_ZERO ;ValorVueltas=0? Ir a CONFIG
-                ;Revisamos si modsel==modactual
-                Brclr PTIH %10000000 MODE0 ; Si modesel 0
+                bset CRGINT,$80
 
-MODE1:
-                Brset Banderas %00001000 FIN_COMP;No hubo cambio de modo
-                Bset Banderas %00001000 ;Modo actual en 1
-                Bra CAMBIO_MODE ;hubo cambio de modo
 
-MODE0:
-                Brclr Banderas %00001000 FIN_COMP ;No hubo cambio de modo
-                Bclr Banderas %00001000 ; bandera ModActual en 0
-                ;Si llega a este punto, hubo cambio
+
 
 
 CAMBIO_MODE:
@@ -260,23 +277,6 @@ FIN_COMP:
 
 CONFIG_MODE:
                 Brset Banderas,$08,CONFIG_LCD  ;Nos fijamos cual modo esta seleccionado
-
-
-CONFIG_RUN:
-                brclr Banderas,$10,CALL_RUN  ;Caso de modo seleccionado run
-
-                bset PIEH,$03     ;se habilitan puertos H 0 y 1
-                bclr Banderas,$10  ;CAMBIO DE MOD EN 0
-                ldx #RUN_MSG1   ;Mensajes por display
-                ldy #RUN_MSG2
-                movb #$01,LEDS ; enciende led pb0
-                ldaa #1
-                ; CONFIGURACION PREVIA AL LCD, en primera iter entra ac?
-
-                jsr CARGAR_LCD
-
-CALL_RUN:
-                jsr MODO_RUN
                 jmp MAIN
 
 
@@ -291,11 +291,10 @@ CONFIG_LCD:
                 bclr PIEH,$03     ;se deshabilitan puertos H 0 y 1
                 bclr Banderas,$10
 
-                ldx #CONFIG_MSG1
-                ldy #CONFIG_MSG2
+                ldx #MSG_CONFIG1
+                ldy #MSG_CONFIG2
 
-                clr CUENTA
-                clr AcmPQ
+
 
                 movb #$00,PORTE
                 movb #$02,LEDS ; enciende led pb1
@@ -324,7 +323,7 @@ Send_Command:   psha                    ;se guarda a en pila
                 bclr PORTK,$01          ;modif bits menos significativos
                 bset PORTK,$02
 
-                movb D260uS,Cont_Delay  ;delay
+                movb D240uS,Cont_Delay  ;delay
                 jsr Delay
 
                 bclr PORTK,$02
@@ -337,7 +336,7 @@ Send_Command:   psha                    ;se guarda a en pila
                 bclr PORTK,$01
                 bset PORTK,$02
 
-                movb D260uS,Cont_Delay  ; delay
+                movb D240uS,Cont_Delay  ; delay
                 jsr Delay
 
                 bclr PORTK,$02
@@ -351,7 +350,7 @@ Send_Data:
                 lsra ;se alinea nibble con bus datos en PORTK5-PORTK2.
                 staa PORTK ;se carga parte alta del dato en el bus de datos.
                 bset PORTK,$03 ;Se habilita el envio de dato y comunicacion con la LCD
-                movb D260us,Cont_Delay ;se inicia el retardo de 260us
+                movb D240us,Cont_Delay ;se inicia el retardo de 260us
                 jsr Delay
                 bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
                 pula ;se recupera el dato original de la pila
@@ -360,7 +359,7 @@ Send_Data:
                 lsla ;se alinea nibble con bus datos en PORTK5-PORTK2.
                 staa PORTK ;se carga parte baja del dato en el bus de datos.
                 bset PORTK,$03 ;Se habilita envio de datos y comunicacion con la LCD
-                movb D260us,Cont_Delay ;se inicia el retardo de 260us.
+                movb D240us,Cont_Delay ;se inicia el retardo de 260us.
                 jsr Delay
                 bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
                 rts
@@ -377,7 +376,7 @@ BCD_BIN:        ldx #Num_Array
                 ldab 1,x           ;revisamos si la unidad es distinta de FF
                 cmpb #$FF
                 beq UNIDAD         ;si es FF, el valor no es valido
-                stab ValorVueltas       ;Si no, lo guarda en ValorVueltas
+                stab ValorVueltas  ;Si no, lo guarda en cantpq
                 bra DECENA         ;lee decenas
 
 UNIDAD:         movb Num_Array,ValorVueltas
@@ -433,7 +432,7 @@ men301
                 Rts
 
 
-;------------------------------------------------------------------------------
+;------------------------------------------------------------------------------                
 CONV_BIN_BCD:
                 Ldaa BIN1
                 Jsr BIN_BCD ;Pasamos BIN1 a BCD
@@ -458,15 +457,15 @@ mayor2          Staa BCD2 ;Guardamos en BCD2
 TAREA_TECLADO:
                 Ldaa Cont_Reb
                 Cmpa #0
-                Bne RETORNAR
+                Bne RETORNAR_TECLADO
                 Jsr MUX_TECLADO
                 Ldaa Tecla
                 Cmpa #$FF
                 Bne PRESIONADA
-                Brclr Banderas,$01,RETORNAR                 ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
+                Brclr Banderas,$01,RETORNAR_TECLADO        ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
                 Bclr Banderas,#$03                         ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
                 Jsr FORMAR_ARRAY
-                        Bra RETORNAR
+                Bra RETORNAR_TECLADO
 
 PRESIONADA:
                 Brclr Banderas,$02,NotProc
@@ -474,7 +473,7 @@ PRESIONADA:
                 Cmpa Tecla
                 Bne Delete
                 Bset Banderas,$01                         ; La tecla esta lista para registro
-                bra RETORNAR
+                bra RETORNAR_TECLADO
 
 
 
@@ -482,14 +481,14 @@ NotProc:
                 Movb Tecla, Tecla_IN
                 Bset Banderas, #2
                 Movb #10,Cont_Reb
-                Bra RETORNAR
+                Bra RETORNAR_TECLADO
 
 DELETE:
                 Movb #$FF,Tecla
                 Movb #$FF,Tecla_IN
                 Bclr Banderas, #3
 
-RETORNAR:
+RETORNAR_TECLADO:
                 RTS
 
 
@@ -569,60 +568,75 @@ end_formar:     movb #$FF,Tecla_IN
 
 ;------------------------------------------------------------------------------
 MODO_CONFIG:
-                movb ValorVueltas, BIN1                       ;Movemos CatnPQ a bin1
+                movb #02,LEDS ;enciende led
+		ldx #MSG_CONFIG1
+                ldy #MSG_CONFIG2
+                jsr Cargar_LCD
+                
+
+		movb NumVueltas, BIN1                       ;Movemos CatnPQ a bin1
                 brset Banderas,$04,DATA_CHECK           ;Revisa bandera arrayok
                 jsr TAREA_TECLADO                       ;Si no arrayok, va a teclado
                 rts
 
 DATA_CHECK:
                 jsr BCD_BIN                              ;pasa de bcd a bin
-                ldaa #3                                 ;limites
+                ldaa #5                                 ;limites
                 cmpa ValorVueltas
                 bgt INVALIDO
-                ldaa #23
+                ldaa #25
                 cmpa ValorVueltas
                 bge VALIDO
 
 INVALIDO:                                                ;caso en que el valor no esta en rango
                 bclr Banderas,$04
                 bclr ValorVueltas,$FF
-                rts
+                bra BORRAR_TECLADO
 
 VALIDO:
                 bclr Banderas, $04                       ;caso en rango, se guarda
-                movb ValorVueltas,NumVueltas
-		movb ValorVueltas,BIN1
+                movb NumVueltas,BIN1
+
+BORRAR_TECLADO:
+		clr ValorVueltas
+                clr NUM_Array
                 rts
 
 
+
 ;------------------------------------------------------------------------------
-MODO_RUN:
-                Tst TIMER_CUENTA         ;si timer cuenta es cero
-                Bne Fin_Run                 ;si no lo es, se retorna
-
-                ;Caso en que timer cuenta es cero
-
-                Movb VMAX,TIMER_CUENTA ;se recarga con vmax
-                Inc CUENTA                 ;incrementamos cuenta
-                Ldaa CUENTA ;
-                Cmpa ValorVueltas ;
-                Bne Fin_Run                 ;si cant!=cuenta
-                Inc AcmPQ                 ;se incrementa AcmPQ
-                Bclr CRGINT %10000000         ;se deshabilitamos RTI
-                Movb #$04,PORTE         ;activa el relay
-                Ldaa #100
-                Cmpa AcmPQ
-                Bne Fin_Run                 ; retorna si no llega a 100
-                CLR AcmPQ                 ;si se llega a 100, hay rebase
-Fin_Run:
-                MOVB CUENTA,BIN1
-                MOVB AcmPQ,BIN2
-                RTS
+MODO_LIBRE:
+                ;REVISAR BANDERAS
+                ldx #MSG_LIBRE1
+                ldy #MSG_LIBRE2
+                jsr Cargar_LCD
+                bclr CRGINT,$80                 ; DETIENE ADT
+                bclr TIE,$10
+                movb #$00,PTJ ;se habilitan los LEDS
+                movb #$01,PORTB ;se coloca en puerto B el estado de los LEDS.
+		movb #$FF,PTP                  ; deshabilita pantalla 7 segmentos
+                rts
 
 
+                
+;-------------------------------------------------------------------------------
+COMPETENCIA:
+                ldx #MSG_LIBRE1
+                ldy #MSG_ESPERA
+
+		movb #$FF,PTP                  ; deshabilita pantalla 7 segmentos
+                movb #$00,PTJ
+		movb #$04,LEDS
+		tst VELOC
+                beq COMPETENCIA_RETURN
+                jsr PANT_CTRL
+COMPETENCIA_RETURN:
+                rts
+
+PANT_CTRL:      RTS
 ;------------------------------------------------------------------------------
 Cargar_LCD:     ldaa ADD_L1                           ;inicio de linea
-                jsr Send_Command                ;envÌa comando
+                jsr Send_Command                ;env√≠a comando
                 movb D40uS,Cont_Delay           ;delay
                 jsr Delay
 
@@ -655,7 +669,7 @@ TERMINA_LCD:    rts
 
 
 ;------------------------------------------------------------------------------
-BCD_7SEG:       ldaa ValorVueltas                    ; Cargamos valor en ValorVueltas
+BCD_7SEG:       ldaa ValorVueltas                     ; Cargamos valor en cantpq
                 cmpa #0                         ; si es zero se apagan pantallas 3 y 4
                 bne NOT_ZERO                    ; 1 y 2 en 0
                 movb #$00,DISP1
@@ -670,8 +684,8 @@ NOT_ZERO:       ldx #SEGMENT                    ; carga dir segmentos
                 movb a,x,DISP4                  ; usamos direccionamiento indexado por acumulador usando valor en parte alta
                 ldaa #$F0                       ; mascara parte baja
                 anda BCD1
-                cmpa #$B0                       ; caso de digito vacÌo
-                beq caso_B                      ; movemos el nibble m·s alto hacia la derecha
+                cmpa #$B0                       ; caso de digito vac√≠o
+                beq caso_B                      ; movemos el nibble m√°s alto hacia la derecha
                 lsra
                 lsra
                 lsra
@@ -680,6 +694,8 @@ NOT_ZERO:       ldx #SEGMENT                    ; carga dir segmentos
                 bra CUENTA_ACMPQ
 
 caso_B:         movb #$00,DISP3                 ; pantalla 3 apagada
+
+
 
 CUENTA_ACMPQ:                                   ;Cantidad de paquetes en BCD2
                 brset Banderas,$08,BCD2_vacio
@@ -698,7 +714,7 @@ CUENTA_ACMPQ:                                   ;Cantidad de paquetes en BCD2
                 movb a,x,DISP1
                 bra return_7seg
 
-caso_B_disp1:                                         ;No hay paquetes completos a˙n
+caso_B_disp1:                                         ;No hay paquetes completos a√∫n
                 movb #$00,DISP1
                 bra return_7seg
 
@@ -715,25 +731,20 @@ return_7seg:
 
 ;------------------------------------------------------------------------------
 RTI_ISR:        bset CRGFLG %10000000                 ;borra bandera de interrupcion RTI
-                tst TIMER_CUENTA
-                beq REBOTES                          ;Si TIMER CUENTA es cero, pasamos a revisar los rebotes
-                dec TIMER_CUENTA                 ;Solo se decrementa si TIMER CUENTA no es cero
+                tst CONT_200
+                beq CARGAR_200               ;Si TIMER CUENTA es cero, pasamos a revisar los rebotes
+                dec CONT_200                 ;Solo se decrementa si TIMER CUENTA no es cero
+                bra REBOTES
+                
+CARGAR_200:
+                movb #200,CONT_200
+                movb #$87,ATD0CTL5          ;REVISAAAAR!!!!!!!!!!!!!!!!!!!!!!!!!
 
 REBOTES:        tst Cont_Reb
-                beq FIN_REB                        ;si llegaron los rebotes a 0, se termina la rubrutina
+                beq FIN_RTI                        ;si llegaron los rebotes a 0, se termina la rubrutina
                 dec Cont_Reb                         ;Decrementamos el contador de rebotes si aun no ha llegado a cero
 
-FIN_REB:
-                Tst CONT_RTI
-    		Beq REFRESCAR
-    		Dec CONT_RTI
-    		Bra FIN_RTI
-REFRESCAR:
-   		Movb #CONT_200,CONT_RTI ;Volvemos al contador con 100
-                Movb #$80,ATD0CTL5
-FIN_RTI:
-   		Rti
-
+FIN_RTI:        rti
 
 
 
@@ -743,7 +754,7 @@ PTH_ISR:        Brset Banderas,$08,PH_CONFIG         ;Si esa en modo config no t
                 Brclr PIFH $01 PTH1                 ;si es 1, se revisa por la siguiente fuente de interrupcion
                 ;CASO DE PH0
                 Bset PIFH $01                         ;apagamos las interrupciones de PH0
-                Clr CUENTA                         ;borramos cuenta
+                Clr VUELTAS                         ;borramos cuenta
                 Bset CRGINT %10000000                 ;Habilita interrupciones de RTI
                 Clr PORTE                         ;apagamos el relay
 
@@ -751,7 +762,7 @@ PTH1:
                 brclr PIFH $02 PH_CONFIG         ;Si no tiene PH1, revisa PH2
                 ;Caso de PH1
                 bset PIFH $02                         ;se apaga la bandera de la fuente de interrupcion
-                clr AcmPQ                         ;se limpia el acumulador
+                                         ;se limpia el acumulador
 PH_CONFIG:
                 Brclr PIFH $04 PTH3                 ;No hay PH3, revisa ph4
                 Bset PIFH $04                         ;se apaga la bandera de la fuente de interrupcion
@@ -854,3 +865,8 @@ FIN_OC4:
                 addd #60                         ;60 por preestaclador 8
                 std TC4                         ;actualiza el nuevo valor a alcanzar.
                 rti
+;-----------------------------------------------------------------------------
+
+ATD_ISR:
+TCNT_isr
+CALCULAR
