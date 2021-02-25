@@ -659,7 +659,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 100a                    CUENTA:         ds 1  ;Contador de tornillos para cada empaque.
 100b                    AcmPQ:          ds 1  ;Contador de empaques completados
 100c                    ValorVueltas:   ds 1  ;numero de vueltas definida por usuario
-100d                    NumVueltas:	ds 1
+100d                    NumVueltas:        ds 1
 100e                    TIMER_CUENTA:   ds 1  ;Conteo de tornillos por medio de interrupcion rti
 100f                    LEDS:           ds 1  ;PB1 para modo CONFIG, PB0 a modo RUN.
 1010                    BRILLO:         ds 1  ;Brillo elegido por el usuario de la pantalla
@@ -733,11 +733,11 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         ;------------------------------------------------------------------------------
                         
 3e70                                   org $3E70   ;Interrupcion RTI.
-3e70 24 65                             dw RTI_ISR
-3e4c                                   org $3E4C   ;Interrupcion key wakeup puerto H.
-3e4c 24 8d                             dw PTH_ISR
+3e70 21 d8                             dw RTI_ISR
+                                       ;org $3E4C   ;Interrupcion key wakeup puerto H.
+                                       ;dw PTH_ISR
 3e66                                   org $3E66   ;Interrupcion OC4.
-3e66 24 df                             dw OC4_ISR
+3e66 23 b7                             dw OC4_ISR
                         
                         
                         
@@ -747,7 +747,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2000                                    org $2000
                         
                             ; conf de interrupciones
-2000 4c 38 80                           bset CRGINT,$80         	;Habilita RTI
+2000 4c 38 80                           bset CRGINT,$80                 ;Habilita RTI
 2003 18 0b 17 00 3b                     movb #$17,RTICTL              ;periodo 1.024 ms
                         
 2008 4c 46 80                           BSET TSCR1,$80                 ;Modulo de timer.
@@ -769,691 +769,680 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2039 18 0b ff 00 33                     movb #$FF,DDRK                 ;IO puerto K como salida (LCD)
 203e 18 0b 04 00 09                     movb #$04,DDRE                 ;IO PORTE4 como salida
                         
+                                        ;Configuracion del ATD
+2043 18 0b 30 00 83         		MOVB #$30,ATD0CTL3
+2048 18 0b b9 00 84         		MOVB #$B9,ATD0CTL4
+204d 18 0b 87 00 85         		MOVB #$87,ATD0CTL5
                         
-2043 10 ef                              cli        ;interrupciones mascarables.
+2052 10 ef                              cli        ;interrupciones mascarables.
                         ;------------------------------------------------------------------------------
                         ;                       Inicializacion de variables
                         ;------------------------------------------------------------------------------
-2045 cf 3b ff                           lds #$3BFF  ;SP
+2054 cf 3b ff                           lds #$3BFF  ;SP
                         
                             ;Displays de 7 segmentos y LEDS:
-2048 79 10 19                           Clr BCD1
-204b 79 10 1a                           Clr BCD2
-204e 79 10 1f                           Clr CONT_7SEG
-2051 79 10 12                           Clr CONT_TICKS
-2054 79 10 11                           Clr CONT_DIG
-2057 79 10 10                           Clr BRILLO
+2057 79 10 19                           Clr BCD1
+205a 79 10 1a                           Clr BCD2
+205d 79 10 1f                           Clr CONT_7SEG
+2060 79 10 12                           Clr CONT_TICKS
+2063 79 10 11                           Clr CONT_DIG
+2066 79 10 10                           Clr BRILLO
                         
-205a 18 0b 02 10 0f                     Movb #$02,LEDS
-205f 18 0c 10 40 10 1d                  Movb SEGMENT,DISP3 ;DISP3 genera un 0
-2065 18 0c 10 40 10 1e                  Movb SEGMENT,DISP4 ;para tener DISP4 produciendo un 0
+2069 18 0b 02 10 0f                     Movb #$02,LEDS
+206e 18 0c 10 40 10 1d                  Movb SEGMENT,DISP3 ;DISP3 genera un 0
+2074 18 0c 10 40 10 1e                  Movb SEGMENT,DISP4 ;para tener DISP4 produciendo un 0
                         
                         
                                             ;config teclado mismo a la tarea anterior. Teclas en FF que indica no presionada
-206b 79 10 04                           Clr Cont_Reb
-206e 79 10 06                           Clr Cont_TCL
-2071 79 10 07                           Clr Patron
-2074 18 0b ff 10 02                     Movb #$FF,Tecla
-2079 18 0b ff 10 03                     Movb #$FF,Tecla_IN
-207e 18 0b ff 10 08                     Movb #$FF,Num_Array
+207a 79 10 04                           Clr Cont_Reb
+207d 79 10 06                           Clr Cont_TCL
+2080 79 10 07                           Clr Patron
+2083 18 0b ff 10 02                     Movb #$FF,Tecla
+2088 18 0b ff 10 03                     Movb #$FF,Tecla_IN
+208d 18 0b ff 10 08                     Movb #$FF,Num_Array
                         
                         
                         ;Programa:
-2083 79 10 0c                           Clr ValorVueltas               ;limpia variables
-2086 79 10 0a                           Clr CUENTA
-2089 79 10 0b                           Clr AcmPQ
-208c 79 10 00                           Clr Banderas
-208f 18 0c 10 18 10 0e                  Movb VMAX,TIMER_CUENTA
+2092 79 10 0c                           Clr ValorVueltas               ;limpia variables
+2095 79 10 0a                           Clr CUENTA
+2098 79 10 0b                           Clr AcmPQ
+209b 79 10 00                           Clr Banderas
+209e 18 0c 10 18 10 0e                  Movb VMAX,TIMER_CUENTA
                         
                         
-2095 dc 44                              Ldd TCNT 		;Reajustar el output compare
-2097 c3 00 3c                           Addd #60 		;50kHz
-209a 5c 58                              Std TC4 		;Valor a alcanzar.
-209c 1c 10 00 10                        Bset Banderas,$10 	;MODO_CONFIG activado
+20a4 dc 44                              Ldd TCNT                 ;Reajustar el output compare
+20a6 c3 00 3c                           Addd #60                 ;50kHz
+20a9 5c 58                              Std TC4                 ;Valor a alcanzar.
+20ab 1c 10 00 10                        Bset Banderas,$10         ;MODO_CONFIG activado
                         
-20a0 ce 10 50                           ldx #iniDsp
-20a3 08                                 inx
-20a4 c7                                 clrb
+20af ce 10 50                           ldx #iniDsp
+20b2 08                                 inx
+20b3 c7                                 clrb
                         
-20a5                    INITIALIZE_LCD:
-20a5 a6 e5                              ldaa b,x                ;cargamos inicio de inicio de display
-20a7 16 21 63                           jsr Send_Command        ;carga comando
-20aa 18 0c 10 24 10 21                  movb D40us,Cont_Delay   ;delay
-20b0 16 21 c3                           jsr Delay
-20b3 52                                 incb                    ;aumenta
-20b4 f1 10 50                           cmpb iniDsp             ;vemos si recorrimos todo
-20b7 26 ec                              bne INITIALIZE_LCD
-20b9 b6 10 25                           ldaa CLEAR_LCD          ;limpia
-20bc 16 21 63                           jsr Send_Command
-20bf 18 0c 10 22 10 21                  movb D2ms,Cont_Delay    ;delay
-20c5 16 21 c3                           jsr Delay
+20b4                    INITIALIZE_LCD:
+20b4 a6 e5                              ldaa b,x                ;cargamos inicio de inicio de display
+20b6 16 24 c7                           jsr Send_Command        ;carga comando
+20b9 18 0c 10 24 10 21                  movb D40us,Cont_Delay   ;delay
+20bf 16 24 c1                           jsr Delay
+20c2 52                                 incb                    ;aumenta
+20c3 f1 10 50                           cmpb iniDsp             ;vemos si recorrimos todo
+20c6 26 ec                              bne INITIALIZE_LCD
+20c8 b6 10 25                           ldaa CLEAR_LCD          ;limpia
+20cb 16 24 c7                           jsr Send_Command
+20ce 18 0c 10 22 10 21                  movb D2ms,Cont_Delay    ;delay
+20d4 16 24 c1                           jsr Delay
                         
                         
                         ;------------------------------------------------------------------------------
-20c8                    MAIN:
-20c8 f7 10 0c                           tst ValorVueltas
-20cb 27 59                              beq ESTADO_ZERO ;ValorVueltas=0? Ir a CONFIG
+20d7                    MAIN:
+20d7 f7 10 0c                           tst ValorVueltas
+20da 27 59                              beq ESTADO_ZERO ;ValorVueltas=0? Ir a CONFIG
                                         ;Revisamos si modsel==modactual
-20cd 1f 02 61 80 0b                     Brclr PTIH %10000000 MODE0 ; Si modesel 0
+20dc 1f 02 61 80 0b                     Brclr PTIH %10000000 MODE0 ; Si modesel 0
                         
-20d2                    MODE1:
-20d2 1e 10 00 08 22                     Brset Banderas %00001000 FIN_COMP;No hubo cambio de modo
-20d7 1c 10 00 08                        Bset Banderas %00001000 ;Modo actual en 1
-20db 20 09                              Bra CAMBIO_MODE ;hubo cambio de modo
+20e1                    MODE1:
+20e1 1e 10 00 08 22                     Brset Banderas %00001000 FIN_COMP;No hubo cambio de modo
+20e6 1c 10 00 08                        Bset Banderas %00001000 ;Modo actual en 1
+20ea 20 09                              Bra CAMBIO_MODE ;hubo cambio de modo
                         
-20dd                    MODE0:
-20dd 1f 10 00 08 17                     Brclr Banderas %00001000 FIN_COMP ;No hubo cambio de modo
-20e2 1d 10 00 08                        Bclr Banderas %00001000 ; bandera ModActual en 0
+20ec                    MODE0:
+20ec 1f 10 00 08 17                     Brclr Banderas %00001000 FIN_COMP ;No hubo cambio de modo
+20f1 1d 10 00 08                        Bclr Banderas %00001000 ; bandera ModActual en 0
                                         ;Si llega a este punto, hubo cambio
                         
                         
-20e6                    CAMBIO_MODE:
-20e6 1c 10 00 10                        Bset Banderas,%00010000 ;hubo cambio de modo que se ve en la bandera correspondiente
-20ea b6 10 25                           ldaa CLEAR_LCD ;cuando se cambia de modo, se limpia la pantalla
-20ed 16 21 63                           Jsr Send_Command
-20f0 18 0c 10 22 10 21                  Movb D2ms,Cont_Delay ;delay  2ms
-20f6 16 21 c3                           Jsr Delay
-20f9                    FIN_COMP:
-20f9 1e 10 00 08 2c                     Brset Banderas %00001000 CONFIG_LCD ;Si ModActual es 1 salta a INIT_CONFIG
+20f5                    CAMBIO_MODE:
+20f5 1c 10 00 10                        Bset Banderas,%00010000 ;hubo cambio de modo que se ve en la bandera correspondiente
+20f9 b6 10 25                           ldaa CLEAR_LCD ;cuando se cambia de modo, se limpia la pantalla
+20fc 16 24 c7                           Jsr Send_Command
+20ff 18 0c 10 22 10 21                  Movb D2ms,Cont_Delay ;delay  2ms
+2105 16 24 c1                           Jsr Delay
+2108                    FIN_COMP:
+2108 1e 10 00 08 2c                     Brset Banderas %00001000 CONFIG_LCD ;Si ModActual es 1 salta a INIT_CONFIG
                         
                         
-20fe                    CONFIG_MODE:
-20fe 1e 10 00 08 27                     Brset Banderas,$08,CONFIG_LCD  ;Nos fijamos cual modo esta seleccionado
+210d                    CONFIG_MODE:
+210d 1e 10 00 08 27                     Brset Banderas,$08,CONFIG_LCD  ;Nos fijamos cual modo esta seleccionado
                         
                         
-2103                    CONFIG_RUN:
-2103 1f 10 00 10 18                     brclr Banderas,$10,CALL_RUN  ;Caso de modo seleccionado run
+2112                    CONFIG_RUN:
+2112 1f 10 00 10 18                     brclr Banderas,$10,CALL_RUN  ;Caso de modo seleccionado run
                         
-2108 1c 02 66 03                        bset PIEH,$03     ;se habilitan puertos H 0 y 1
-210c 1d 10 00 10                        bclr Banderas,$10  ;CAMBIO DE MOD EN 0
-2110 ce 10 8a                           ldx #RUN_MSG1   ;Mensajes por display
-2113 cd 10 93                           ldy #RUN_MSG2
-2116 18 0b 01 10 0f                     movb #$01,LEDS ; enciende led pb0
-211b 86 01                              ldaa #1
+2117 1c 02 66 03                        bset PIEH,$03     ;se habilitan puertos H 0 y 1
+211b 1d 10 00 10                        bclr Banderas,$10  ;CAMBIO DE MOD EN 0
+211f ce 10 8a                           ldx #RUN_MSG1   ;Mensajes por display
+2122 cd 10 93                           ldy #RUN_MSG2
+2125 18 0b 01 10 0f                     movb #$01,LEDS ; enciende led pb0
+212a 86 01                              ldaa #1
                                         ; CONFIGURACION PREVIA AL LCD, en primera iter entra ac?
                         
-211d 16 23 a4                           jsr CARGAR_LCD
+212c 16 24 7a                           jsr CARGAR_LCD
                         
-2120                    CALL_RUN:
-2120 16 23 6c                           jsr MODO_RUN
-2123 06 20 c8                           jmp MAIN
+212f                    CALL_RUN:
+212f 16 25 27                           jsr MODO_RUN
+2132 06 20 d7                           jmp MAIN
                         
                         
-2126                    ESTADO_ZERO:
-2126 1c 10 00 08                        bset Banderas,$08
+2135                    ESTADO_ZERO:
+2135 1c 10 00 08                        bset Banderas,$08
                         
-212a                    CONFIG_LCD:
-212a 4c 38 80                           bset CRGINT,$80
-212d 1f 10 00 10 2b                     brclr Banderas,$10,CALL_CONFIG  ; Entra SOLO en primera iteraci?n
-2132 1d 10 00 10                        bclr Banderas,$10 ; se pone cambio de modo en 0
+2139                    CONFIG_LCD:
+2139 4c 38 80                           bset CRGINT,$80
+213c 1f 10 00 10 2b                     brclr Banderas,$10,CALL_CONFIG  ; Entra SOLO en primera iteraci?n
+2141 1d 10 00 10                        bclr Banderas,$10 ; se pone cambio de modo en 0
                         
-2136 1d 02 66 03                        bclr PIEH,$03     ;se deshabilitan puertos H 0 y 1
-213a 1d 10 00 10                        bclr Banderas,$10
+2145 1d 02 66 03                        bclr PIEH,$03     ;se deshabilitan puertos H 0 y 1
+2149 1d 10 00 10                        bclr Banderas,$10
                         
-213e ce 10 70                           ldx #CONFIG_MSG1
-2141 cd 10 7c                           ldy #CONFIG_MSG2
+214d ce 10 70                           ldx #CONFIG_MSG1
+2150 cd 10 7c                           ldy #CONFIG_MSG2
                         
-2144 79 10 0a                           clr CUENTA
-2147 79 10 0b                           clr AcmPQ
+2153 79 10 0a                           clr CUENTA
+2156 79 10 0b                           clr AcmPQ
                         
-214a 18 0b 00 00 08                     movb #$00,PORTE
-214f 18 0b 02 10 0f                     movb #$02,LEDS ; enciende led pb1
+2159 18 0b 00 00 08                     movb #$00,PORTE
+215e 18 0b 02 10 0f                     movb #$02,LEDS ; enciende led pb1
                         
-2154 18 0c 10 0c 10 14                  movb ValorVueltas,BIN1
+2163 18 0c 10 0c 10 14                  movb ValorVueltas,BIN1
                         
                                         ; CONFIGURACION PREVIA AL LCD, en primera iter entra ac?
                         
-215a 16 23 a4                           jsr CARGAR_LCD
+2169 16 24 7a                           jsr CARGAR_LCD
                         
                         
                         
-215d                    CALL_CONFIG:
-215d 16 23 32                           jsr MODO_CONFIG
+216c                    CALL_CONFIG:
+216c 16 21 72                           jsr MODO_CONFIG
                         
                         
-2160 06 20 c8           volver_main:    jmp MAIN
+216f 06 20 d7           volver_main:    jmp MAIN
+                        ;------------------------------------------------------------------------------
+                        ; SUBRUTINAS EN ORDEN
+                        ;------------------------------------------------------------------------------
+2172                    MODO_CONFIG:
+2172 18 0c 10 0d 10 14                  movb NumVueltas, BIN1                       ;Movemos CatnPQ a bin1
+2178 1e 10 00 04 04                     brset Banderas,$04,DATA_CHECK           ;Revisa bandera arrayok
+217d 16 21 f8                           jsr TAREA_TECLADO                       ;Si no arrayok, va a teclado
+2180 3d                                 rts
+                        
+2181                    DATA_CHECK:
+2181 16 21 b4                           jsr BCD_BIN                              ;pasa de bcd a bin
+2184 86 03                              ldaa #3                                 ;limites
+2186 b1 10 0c                           cmpa ValorVueltas
+2189 2e 07                              bgt INVALIDO
+218b 86 17                              ldaa #23
+218d b1 10 0c                           cmpa ValorVueltas
+2190 2c 0b                              bge VALIDO
+                        
+2192                    INVALIDO:                                                ;caso en que el valor no esta en rango
+2192 1d 10 00 04                        bclr Banderas,$04
+2196 79 10 0c                           Clr ValorVueltas
+2199 79 10 08                           Clr Num_Array
+219c 3d                                 rts
+                        
+219d                    VALIDO:
+219d 1d 10 00 04                        bclr Banderas, $04                       ;caso en rango, se guarda
+21a1 18 0c 10 0c 10 0d                  movb ValorVueltas,NumVueltas
+21a7 18 0c 10 0c 10 14                  movb ValorVueltas,BIN1
+21ad 79 10 0c                           Clr ValorVueltas
+21b0 79 10 08                           Clr Num_Array
+21b3 3d                                 rts
                         
                         ;------------------------------------------------------------------------------
-2163 36                 Send_Command:   psha                    ;se guarda a en pila
-2164 84 f0                              anda #$F0               ;mascara de parte alta
-2166 44                                 lsra                    ;deja limpios los dos bits menos significativos
-2167 44                                 lsra
+21b4 ce 10 08           BCD_BIN:        ldx #Num_Array
+21b7 e6 01                              ldab 1,x           ;revisamos si la unidad es distinta de FF
+21b9 c1 ff                              cmpb #$FF
+21bb 27 05                              beq UNIDAD         ;si es FF, el valor no es valido
+21bd 7b 10 0c                           stab ValorVueltas       ;Si no, lo guarda en ValorVueltas
+21c0 20 07                              bra DECENA         ;lee decenas
                         
-2168 5a 32                              staa PORTK              ;guarda a en portk
-216a 4d 32 01                           bclr PORTK,$01          ;modif bits menos significativos
-216d 4c 32 02                           bset PORTK,$02
-                        
-2170 18 0c 10 23 10 21                  movb D260uS,Cont_Delay  ;delay
-2176 16 21 c3                           jsr Delay
-                        
-2179 4d 32 02                           bclr PORTK,$02
-217c 32                                 pula                    ;trae a
-217d 84 0f                              anda #$0F               ;mascara parte baja
-217f 48                                 lsla
-2180 48                                 lsla
-                        
-2181 5a 32                              staa PORTK
-2183 4d 32 01                           bclr PORTK,$01
-2186 4c 32 02                           bset PORTK,$02
-                        
-2189 18 0c 10 23 10 21                  movb D260uS,Cont_Delay  ; delay
-218f 16 21 c3                           jsr Delay
-                        
-2192 4d 32 02                           bclr PORTK,$02
-2195 3d                                 rts
-                        
-                        ;------------------------------------------------------------------------------
-2196                    Send_Data:
-2196 36                                 psha ;el dato se recibe en acumulador A y se protege para poder analizar sus nibbles por separado
-2197 84 f0                              anda #$F0 ;Se deja solo el nibble superior del dato
-2199 44                                 lsra
-219a 44                                 lsra ;se alinea nibble con bus datos en PORTK5-PORTK2.
-219b 5a 32                              staa PORTK ;se carga parte alta del dato en el bus de datos.
-219d 4c 32 03                           bset PORTK,$03 ;Se habilita el envio de dato y comunicacion con la LCD
-21a0 18 0c 10 23 10 21                  movb D260us,Cont_Delay ;se inicia el retardo de 260us
-21a6 16 21 c3                           jsr Delay
-21a9 4d 32 02                           bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
-21ac 32                                 pula ;se recupera el dato original de la pila
-21ad 84 0f                              anda #$0F ;Se deja solo el nibble inferior del dato
-21af 48                                 lsla
-21b0 48                                 lsla ;se alinea nibble con bus datos en PORTK5-PORTK2.
-21b1 5a 32                              staa PORTK ;se carga parte baja del dato en el bus de datos.
-21b3 4c 32 03                           bset PORTK,$03 ;Se habilita envio de datos y comunicacion con la LCD
-21b6 18 0c 10 23 10 21                  movb D260us,Cont_Delay ;se inicia el retardo de 260us.
-21bc 16 21 c3                           jsr Delay
-21bf 4d 32 02                           bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
-21c2 3d                                 rts
-                        
-                        ;------------------------------------------------------------------------------
-21c3                    Delay:
-21c3 f7 10 21                           tst Cont_Delay      ;Espera hasta que OC4 disminuya
-21c6 26 fb                              bne Delay
+21c2 18 0c 10 08 10 0c  UNIDAD:         movb Num_Array,ValorVueltas
 21c8 3d                                 rts
                         
+21c9                    DECENA:
+21c9 87                                 clra
+21ca f6 10 08                           ldab Num_Array    ;carga en b
+21cd cd 00 0a                           ldy #10           ;multiplica decenas por 10
+21d0 13                                 emul
+                        
+21d1 fb 10 0c                           addb ValorVueltas
+21d4 7b 10 0c                           stab ValorVueltas
+                        
+21d7 3d                                 rts
+                                        
+                        ;------------------------------------------------------------------------------
+21d8 4c 37 80           RTI_ISR:        bset CRGFLG %10000000                 ;borra bandera de interrupcion RTI
+21db f7 10 04                           tst Cont_Reb
+21de 27 03                              beq TIMER                       ;si llegaron los rebotes a 0, se termina la rubrutina
+21e0 73 10 04                           dec Cont_Reb
+                        
+                        		                 ;Solo se decrementa si TIMER CUENTA no es cero
+                        
+21e3 f7 10 0e           TIMER:          tst TIMER_CUENTA
+21e6 26 0c                              bne NO_RESET
+                        		;Caso en que es cero y se reinicia
+21e8 18 0b 28 10 05                     Movb #CONT_200,CONT_RTI ;Volvemos al contador con 200
+21ed 18 0b 87 00 85                     Movb #$87,ATD0CTL5
+21f2 20 03                              Bra FIN_RTI
+                        
+                        
+21f4 73 10 0e           NO_RESET:   	dec TIMER_CUENTA                           ;Decrementamos el contador de rebotes si aun no ha llegado a cero
+                        
+                        
+21f7 0b                 FIN_RTI:        Rti
                         
                         ;------------------------------------------------------------------------------
-21c9 ce 10 08           BCD_BIN:        ldx #Num_Array
-21cc e6 01                              ldab 1,x           ;revisamos si la unidad es distinta de FF
-21ce c1 ff                              cmpb #$FF
-21d0 27 05                              beq UNIDAD         ;si es FF, el valor no es valido
-21d2 7b 10 0c                           stab ValorVueltas       ;Si no, lo guarda en ValorVueltas
-21d5 20 07                              bra DECENA         ;lee decenas
+21f8                    TAREA_TECLADO:
+21f8 b6 10 04                           Ldaa Cont_Reb
+21fb 81 00                              Cmpa #0
+21fd 26 4a                              Bne RETORNAR
+21ff 16 22 4a                           Jsr MUX_TECLADO
+2202 b6 10 02                           Ldaa Tecla
+2205 81 ff                              Cmpa #$FF
+2207 26 0e                              Bne PRESIONADA
+2209 1f 10 00 01 3b                     Brclr Banderas,$01,RETORNAR                 ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
+220e 1d 10 00 03                        Bclr Banderas,#$03                         ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
+2212 16 22 80                           Jsr FORMAR_ARRAY
+2215 20 32                                      Bra RETORNAR
                         
-21d7 18 0c 10 08 10 0c  UNIDAD:         movb Num_Array,ValorVueltas
-21dd 3d                                 rts
-                        
-21de                    DECENA:
-21de 87                                 clra
-21df f6 10 08                           ldab Num_Array    ;carga en b
-21e2 cd 00 0a                           ldy #10           ;multiplica decenas por 10
-21e5 13                                 emul
-                        
-21e6 fb 10 0c                           addb ValorVueltas
-21e9 7b 10 0c                           stab ValorVueltas
-                        
-21ec 3d                                 rts
-                        
-                        
-                        ;------------------------------------------------------------------------------
-21ed                    BIN_BCD:
-                        
-21ed c6 07                              Ldab #7  ; Contador B=15
-21ef 79 10 16                           Clr BCD_L
-                        
-21f2                    lazo:
-21f2 48                                 Lsla
-21f3 75 10 16                           Rol BCD_L  ;Lo mismo para la variable BCD_L y BCD_H
-21f6 36                                 Psha
-                        
-21f7 b6 10 16                           Ldaa BCD_L ;Cargamos en A el BCD_L
-21fa 84 0f                              Anda #$0F  ;Tomamos solo en cuenta los 4LSB
-21fc 81 05                              Cmpa #5   ;Comparamos con 5
-21fe 25 02                              Blo men031  ;Si es menor, salte a men031
-2200 8b 03                              Adda #3  ;En caso de mayor, sume 3
-                        
-2202                    men031
-2202 7a 10 17                           Staa LOW  ;Guardamos temporalmente el resultado anterior
-                        
-2205 b6 10 16                           Ldaa BCD_L
-2208 84 f0                              Anda #$F0 ;En A tenemos cargado del bit 4 al 7
-220a 81 50                              Cmpa #$50  ;Comparamos con $50
-220c 25 02                              Blo men301
-220e 8b 30                              Adda #$30   ;Si es mayor, sume 30
-                        
-2210                    men301
-2210 bb 10 17                           Adda LOW   ;Se suman los bits para obtener los 4 LSB de resultado
-2213 7a 10 16                           Staa BCD_L  ;Se guarda el resultado
-2216 32                                 Pula
-2217 04 31 d8                           Dbne b, lazo
-                        
-221a 48                                 Lsla
-221b 75 10 16                           Rol BCD_L
-                        
-221e 3d                                 Rts
+2217                    PRESIONADA:
+2217 1f 10 00 02 0e                     Brclr Banderas,$02,NotProc
+221c b6 10 03                           Ldaa Tecla_IN
+221f b1 10 02                           Cmpa Tecla
+2222 26 17                              Bne Delete
+2224 1c 10 00 01                        Bset Banderas,$01                         ; La tecla esta lista para registro
+2228 20 1f                              bra RETORNAR
                         
                         
-                        ;------------------------------------------------------------------------------
-221f                    CONV_BIN_BCD:
-221f b6 10 14                           Ldaa BIN1
-2222 16 21 ed                           Jsr BIN_BCD ;Pasamos BIN1 a BCD
-2225 b6 10 16                           Ldaa BCD_L
-2228 81 0a                              Cmpa #10
-222a 24 02                              Bhs mayor1
-222c 8b b0                              Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
                         
-222e 7a 10 19           mayor1          Staa BCD1 ;Guardamos el valor en BCD1
-2231 b6 10 15                           Ldaa BIN2
-2234 16 21 ed                           Jsr BIN_BCD ;Pasamos BIN2 a BCD
-2237 b6 10 16                           Ldaa BCD_L
-223a 81 0a                              Cmpa #10
-223c 24 02                              Bhs mayor2
-223e 8b b0                              Adda #$B0 ;Si es de un solo digito, agrega B en decenas
+222a                    NotProc:
+222a 18 0c 10 02 10 03                  Movb Tecla, Tecla_IN
+2230 1c 10 00 02                        Bset Banderas, #2
+2234 18 0b 0a 10 04                     Movb #10,Cont_Reb
+2239 20 0e                              Bra RETORNAR
                         
-2240 7a 10 1a           mayor2          Staa BCD2 ;Guardamos en BCD2
-2243 3d                                 Rts
+223b                    DELETE:
+223b 18 0b ff 10 02                     Movb #$FF,Tecla
+2240 18 0b ff 10 03                     Movb #$FF,Tecla_IN
+2245 1d 10 00 03                        Bclr Banderas, #3
+                        
+2249                    RETORNAR:
+2249 3d                                 RTS
                         
                         
                         ;------------------------------------------------------------------------------
-2244                    TAREA_TECLADO:
-2244 b6 10 04                           Ldaa Cont_Reb
-2247 81 00                              Cmpa #0
-2249 26 4a                              Bne RETORNAR
-224b 16 22 96                           Jsr MUX_TECLADO
-224e b6 10 02                           Ldaa Tecla
-2251 81 ff                              Cmpa #$FF
-2253 26 0e                              Bne PRESIONADA
-2255 1f 10 00 01 3b                     Brclr Banderas,$01,RETORNAR                 ; Si TCL_LISTA es 0, no hay tecla que registrar por lo que se termina la subrutina
-225a 1d 10 00 03                        Bclr Banderas,#$03                         ; Caso contrario se registra la tecla. Se ponen en 0 TCL_LISTA y TCL_LEIDA para la siguiente tecla
-225e 16 22 cc                           Jsr FORMAR_ARRAY
-2261 20 32                                      Bra RETORNAR
+224a 18 0b ef 10 07     MUX_TECLADO:    movb #$EF,Patron                ; Patron inicial
+224f cc f0 00                           ldd #$F000                       ; final cuando se desplaza patron
                         
-2263                    PRESIONADA:
-2263 1f 10 00 02 0e                     Brclr Banderas,$02,NotProc
-2268 b6 10 03                           Ldaa Tecla_IN
-226b b1 10 02                           Cmpa Tecla
-226e 26 17                              Bne Delete
-2270 1c 10 00 01                        Bset Banderas,$01                         ; La tecla esta lista para registro
-2274 20 1f                              bra RETORNAR
+2252 18 0c 10 07 00 00  BUSCAR_COLUMNA: movb Patron,PORTA
+2258 4f 00 08 18                        brclr PORTA,$08,columna2            ; Verificamos se la tecla est? en la columna2
+225c 4f 00 04 15                        brclr PORTA,$04,columna1
+2260 4f 00 02 12                        brclr PORTA,$02,columna0
+2264 78 10 07                           lsl Patron                          ; Se desplaza el patron para verificar siguiente fila
+2267 cb 03                              addb #3                             ; Se suman 3 para aumentar esa cantidad en el array de posibilidades
+2269 b1 10 07                           cmpa Patron
+226c 26 e4                              bne BUSCAR_COLUMNA
+226e 18 0b ff 10 02                     movb #$FF,Tecla
+2273 3d                 TERMINAR:       rts
+                        
+2274 52                 columna2:       incb                                ; Incrementa en 2 si salta ac?
+2275 52                 columna1:       incb                                ; Incrementa en 1 si salta ac?
+2276 ce 10 30           columna0:       ldx #Teclas
+2279 18 0d e5 10 02                     movb B,X,Tecla                      ; Se mueve la tecla encontrada
+227e 20 f3                              bra TERMINAR
+                        
+                        ;------------------------------------------------------------------------------
+2280 b6 10 03           FORMAR_ARRAY:   ldaa Tecla_IN                   ; valor ingresado
+2283 f6 10 06                           ldab Cont_TCL                   ; cantidad de numeros
+2286 ce 10 08                           ldx #Num_Array                   ; Posici?n del array
+                        
+2289 f1 10 01                           cmpb MAX_TCL                    ; comparamos si ya est? lleno
+228c 27 13                              beq ARRAY_LLENO
+228e c1 00                              cmpb #0                         ; vemos si est? vac?o
+2290 27 2a                              beq PRIMER_VAL
+2292 81 0b                              cmpa #$0B                       ; tecla borrar
+2294 27 42                              beq BORRAR
+2296 81 0e                              cmpa #$0E                       ; tecla enter
+2298 27 34                              beq ENTER
+229a 6a e5                              staa b,x                        ; guarda en Num_array + cont_TCL
+229c 72 10 06                           inc Cont_TCL
+229f 20 3f                              bra end_formar
+                        
+22a1 81 0b              ARRAY_LLENO:    cmpa #$0B
+22a3 26 0a                              bne ARRAY_LLENO_1
+22a5 53                                 decb
+22a6 18 08 e5 ff                        movb #$FF,b,x                    ; Para borrar reemplazamos valor actual con ff
+22aa 73 10 06                           dec Cont_TCL
+22ad 20 31                              bra end_formar
+                        
+22af 81 0e              ARRAY_LLENO_1:  cmpa #$0E                         ; es enter?
+22b1 26 2d                              bne end_formar
+22b3 1c 10 00 04                        bset Banderas,$04                ; bandera de array ok
+22b7 79 10 06                           clr Cont_TCL                     ; vac?a contador tc
+22ba 20 24                              bra end_formar
+                        
+22bc 81 0b              PRIMER_VAL:     cmpa #$0B
+22be 27 20                              beq end_formar                         ; terminar
+                        
+22c0 81 0e              PRIMER_VAL_1:   cmpa #$0E
+22c2 27 1c                              beq end_formar
+22c4 18 09 e5 10 03                     movb Tecla_IN,b,x
+22c9 72 10 06                           inc Cont_TCL
+22cc 20 12                              bra end_formar
+                        
+22ce 1c 10 00 04        ENTER:          bset Banderas,#$04                    ; bandera de array_ok
+22d2 1d 10 06 ff                        bclr Cont_TCL,#$FF                    ; pone contador en 0
+22d6 20 08                              bra end_formar
                         
                         
+22d8 73 10 06           BORRAR:         dec Cont_TCL
+22db 53                                 decb
+22dc 18 08 e5 ff                        movb #$FF,b,x
                         
-2276                    NotProc:
-2276 18 0c 10 02 10 03                  Movb Tecla, Tecla_IN
-227c 1c 10 00 02                        Bset Banderas, #2
-2280 18 0b 0a 10 04                     Movb #10,Cont_Reb
-2285 20 0e                              Bra RETORNAR
                         
-2287                    DELETE:
-2287 18 0b ff 10 02                     Movb #$FF,Tecla
-228c 18 0b ff 10 03                     Movb #$FF,Tecla_IN
-2291 1d 10 00 03                        Bclr Banderas, #3
-                        
-2295                    RETORNAR:
-2295 3d                                 RTS
+22e0 18 0b ff 10 03     end_formar:     movb #$FF,Tecla_IN
+22e5 3d                                 rts
                         
                         
                         ;------------------------------------------------------------------------------
-2296 18 0b ef 10 07     MUX_TECLADO:    movb #$EF,Patron                ; Patron inicial
-229b cc f0 00                           ldd #$F000                       ; final cuando se desplaza patron
                         
-229e 18 0c 10 07 00 00  BUSCAR_COLUMNA: movb Patron,PORTA
-22a4 4f 00 08 18                        brclr PORTA,$08,columna2            ; Verificamos se la tecla est? en la columna2
-22a8 4f 00 04 15                        brclr PORTA,$04,columna1
-22ac 4f 00 02 12                        brclr PORTA,$02,columna0
-22b0 78 10 07                           lsl Patron                          ; Se desplaza el patron para verificar siguiente fila
-22b3 cb 03                              addb #3                             ; Se suman 3 para aumentar esa cantidad en el array de posibilidades
-22b5 b1 10 07                           cmpa Patron
-22b8 26 e4                              bne BUSCAR_COLUMNA
-22ba 18 0b ff 10 02                     movb #$FF,Tecla
-22bf 3d                 TERMINAR:       rts
-                        
-22c0 52                 columna2:       incb                                ; Incrementa en 2 si salta ac?
-22c1 52                 columna1:       incb                                ; Incrementa en 1 si salta ac?
-22c2 ce 10 30           columna0:       ldx #Teclas
-22c5 18 0d e5 10 02                     movb B,X,Tecla                      ; Se mueve la tecla encontrada
-22ca 20 f3                              bra TERMINAR
-                        
-                        ;------------------------------------------------------------------------------
-22cc b6 10 03           FORMAR_ARRAY:   ldaa Tecla_IN                   ; valor ingresado
-22cf f6 10 06                           ldab Cont_TCL                   ; cantidad de numeros
-22d2 ce 10 08                           ldx #Num_Array                   ; Posici?n del array
-                        
-22d5 f1 10 01                           cmpb MAX_TCL                    ; comparamos si ya est? lleno
-22d8 27 13                              beq ARRAY_LLENO
-22da c1 00                              cmpb #0                         ; vemos si est? vac?o
-22dc 27 2a                              beq PRIMER_VAL
-22de 81 0b                              cmpa #$0B                       ; tecla borrar
-22e0 27 42                              beq BORRAR
-22e2 81 0e                              cmpa #$0E                       ; tecla enter
-22e4 27 34                              beq ENTER
-22e6 6a e5                              staa b,x                        ; guarda en Num_array + cont_TCL
-22e8 72 10 06                           inc Cont_TCL
-22eb 20 3f                              bra end_formar
-                        
-22ed 81 0b              ARRAY_LLENO:    cmpa #$0B
-22ef 26 0a                              bne ARRAY_LLENO_1
-22f1 53                                 decb
-22f2 18 08 e5 ff                        movb #$FF,b,x                    ; Para borrar reemplazamos valor actual con ff
-22f6 73 10 06                           dec Cont_TCL
-22f9 20 31                              bra end_formar
-                        
-22fb 81 0e              ARRAY_LLENO_1:  cmpa #$0E                         ; es enter?
-22fd 26 2d                              bne end_formar
-22ff 1c 10 00 04                        bset Banderas,$04                ; bandera de array ok
-2303 79 10 06                           clr Cont_TCL                     ; vac?a contador tc
-2306 20 24                              bra end_formar
-                        
-2308 81 0b              PRIMER_VAL:     cmpa #$0B
-230a 27 20                              beq end_formar                         ; terminar
-                        
-230c 81 0e              PRIMER_VAL_1:   cmpa #$0E
-230e 27 1c                              beq end_formar
-2310 18 09 e5 10 03                     movb Tecla_IN,b,x
-2315 72 10 06                           inc Cont_TCL
-2318 20 12                              bra end_formar
-                        
-231a 1c 10 00 04        ENTER:          bset Banderas,#$04                    ; bandera de array_ok
-231e 1d 10 06 ff                        bclr Cont_TCL,#$FF                    ; pone contador en 0
-2322 20 08                              bra end_formar
-                        
-                        
-2324 73 10 06           BORRAR:         dec Cont_TCL
-2327 53                                 decb
-2328 18 08 e5 ff                        movb #$FF,b,x
-                        
-                        
-232c 18 0b ff 10 03     end_formar:     movb #$FF,Tecla_IN
-2331 3d                                 rts
+22e6                    ATD_ISR:
                         
                         
                         ;------------------------------------------------------------------------------
-2332                    MODO_CONFIG:
-2332 18 0c 10 0c 10 14                  movb ValorVueltas, BIN1                       ;Movemos CatnPQ a bin1
-2338 1e 10 00 04 04                     brset Banderas,$04,DATA_CHECK           ;Revisa bandera arrayok
-233d 16 22 44                           jsr TAREA_TECLADO                       ;Si no arrayok, va a teclado
-2340 3d                                 rts
                         
-2341                    DATA_CHECK:
-2341 16 21 c9                           jsr BCD_BIN                              ;pasa de bcd a bin
-2344 86 03                              ldaa #3                                 ;limites
-2346 b1 10 0c                           cmpa ValorVueltas
-2349 2e 07                              bgt INVALIDO
-234b 86 17                              ldaa #23
-234d b1 10 0c                           cmpa ValorVueltas
-2350 2c 09                              bge VALIDO
-                        
-2352                    INVALIDO:                                                ;caso en que el valor no esta en rango
-2352 1d 10 00 04                        bclr Banderas,$04
-2356 1d 10 0c ff                        bclr ValorVueltas,$FF
-235a 3d                                 rts
-                        
-235b                    VALIDO:
-235b 1d 10 00 04                        bclr Banderas, $04                       ;caso en rango, se guarda
-235f 18 0c 10 0c 10 0d                  movb ValorVueltas,NumVueltas
-2365 18 0c 10 0c 10 14  		movb ValorVueltas,BIN1
-236b 3d                                 rts
+22e6                    Competencia:
                         
                         
                         ;------------------------------------------------------------------------------
-236c                    MODO_RUN:
-236c f7 10 0e                           Tst TIMER_CUENTA         ;si timer cuenta es cero
-236f 26 26                              Bne Fin_Run                 ;si no lo es, se retorna
+                        
+22e6                    PANT_CTRL:
+                        
+                        
+                        ;------------------------------------------------------------------------------
+                        
+22e6                    CALCULAR:
+                        
+                        
+                        ;------------------------------------------------------------------------------
+                        
+22e6                    TCNT_ISR:
+                        
+                        
+                        ;------------------------------------------------------------------------------
+22e6                    CONV_BIN_BCD:
+22e6 b6 10 14                           Ldaa BIN1
+22e9 16 23 0b                           Jsr BIN_BCD ;Pasamos BIN1 a BCD
+22ec b6 10 16                           Ldaa BCD_L
+22ef 81 0a                              Cmpa #10
+22f1 24 02                              Bhs mayor1
+22f3 8b b0                              Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
+                        
+22f5 7a 10 19           mayor1          Staa BCD1 ;Guardamos el valor en BCD1
+22f8 b6 10 15                           Ldaa BIN2
+22fb 16 23 0b                           Jsr BIN_BCD ;Pasamos BIN2 a BCD
+22fe b6 10 16                           Ldaa BCD_L
+2301 81 0a                              Cmpa #10
+2303 24 02                              Bhs mayor2
+2305 8b b0                              Adda #$B0 ;Si es de un solo digito, agrega B en decenas
+                        
+2307 7a 10 1a           mayor2          Staa BCD2 ;Guardamos en BCD2
+230a 3d                                 Rts
+                        
+                        
+                        ;------------------------------------------------------------------------------
+230b                    BIN_BCD:
+                        
+230b c6 07                              Ldab #7  ; Contador B=15
+230d 79 10 16                           Clr BCD_L
+                        
+2310                    lazo:
+2310 48                                 Lsla
+2311 75 10 16                           Rol BCD_L  ;Lo mismo para la variable BCD_L y BCD_H
+2314 36                                 Psha
+                        
+2315 b6 10 16                           Ldaa BCD_L ;Cargamos en A el BCD_L
+2318 84 0f                              Anda #$0F  ;Tomamos solo en cuenta los 4LSB
+231a 81 05                              Cmpa #5   ;Comparamos con 5
+231c 25 02                              Blo men031  ;Si es menor, salte a men031
+231e 8b 03                              Adda #3  ;En caso de mayor, sume 3
+                        
+2320                    men031
+2320 7a 10 17                           Staa LOW  ;Guardamos temporalmente el resultado anterior
+                        
+2323 b6 10 16                           Ldaa BCD_L
+2326 84 f0                              Anda #$F0 ;En A tenemos cargado del bit 4 al 7
+2328 81 50                              Cmpa #$50  ;Comparamos con $50
+232a 25 02                              Blo men301
+232c 8b 30                              Adda #$30   ;Si es mayor, sume 30
+                        
+232e                    men301
+232e bb 10 17                           Adda LOW   ;Se suman los bits para obtener los 4 LSB de resultado
+2331 7a 10 16                           Staa BCD_L  ;Se guarda el resultado
+2334 32                                 Pula
+2335 04 31 d8                           Dbne b, lazo
+                        
+2338 48                                 Lsla
+2339 75 10 16                           Rol BCD_L
+                        
+233c 3d                                 Rts
+                        
+                        
+                        
+                        
+                        ;------------------------------------------------------------------------------
+233d b6 10 0c           BCD_7SEG:       ldaa ValorVueltas                    ; Cargamos valor en ValorVueltas
+2340 81 00                              cmpa #0                         ; si es zero se apagan pantallas 3 y 4
+2342 26 18                              bne NOT_ZERO                    ; 1 y 2 en 0
+2344 18 0b 00 10 1b                     movb #$00,DISP1
+2349 18 0b 00 10 1c                     movb #$00,DISP2
+234e 18 0c 10 40 10 1d                  movb SEGMENT,DISP3
+2354 18 0c 10 40 10 1e                  movb SEGMENT,DISP4
+235a 20 5a                              bra return_7seg
+                        
+235c ce 10 40           NOT_ZERO:       ldx #SEGMENT                    ; carga dir segmentos
+235f 86 0f                              ldaa #$0F                       ; mascara parte alta
+2361 b4 10 19                           anda BCD1
+2364 18 0d e4 10 1e                     movb a,x,DISP4                  ; usamos direccionamiento indexado por acumulador usando valor en parte alta
+2369 86 f0                              ldaa #$F0                       ; mascara parte baja
+236b b4 10 19                           anda BCD1
+236e 81 b0                              cmpa #$B0                       ; caso de digito vacío
+2370 27 0b                              beq caso_B                      ; movemos el nibble más alto hacia la derecha
+2372 44                                 lsra
+2373 44                                 lsra
+2374 44                                 lsra
+2375 44                                 lsra
+2376 18 0d e4 10 1d                     movb a,x,DISP3                  ; movemos a pantalla 3
+237b 20 05                              bra CUENTA_ACMPQ
+                        
+237d 18 0b 00 10 1d     caso_B:         movb #$00,DISP3                 ; pantalla 3 apagada
+                        
+2382                    CUENTA_ACMPQ:                                   ;Cantidad de paquetes en BCD2
+2382 1e 10 00 08 25                     brset Banderas,$08,BCD2_vacio
+                        
+2387 86 0f                              ldaa #$0F
+2389 b4 10 1a                           anda BCD2
+238c 18 0d e4 10 1c                     movb a,x,DISP2
+2391 86 f0                              ldaa #$F0
+2393 b4 10 1a                           anda BCD2
+2396 81 b0                              cmpa #$B0
+2398 27 0b                              beq caso_B_disp1
+239a 44                                 lsra
+239b 44                                 lsra
+239c 44                                 lsra
+239d 44                                 lsra
+239e 18 0d e4 10 1b                     movb a,x,DISP1
+23a3 20 11                              bra return_7seg
+                        
+23a5                    caso_B_disp1:                                         ;No hay paquetes completos aún
+23a5 18 0b 00 10 1b                     movb #$00,DISP1
+23aa 20 0a                              bra return_7seg
+                        
+                        
+23ac 18 0b 00 10 1b     BCD2_vacio:     movb #$00,DISP1                       ;apaga 1 y 2
+23b1 18 0b 00 10 1c                     movb #$00,DISP2
+                        
+23b6                    return_7seg:
+23b6 3d                                 rts
+                                        
+                        ;------------------------------------------------------------------------------
+23b7                    OC4_ISR:
+23b7 b6 10 21                           ldaa Cont_Delay                 ;Revisamos Cont_Delay para ver si hay que restarle
+23ba 81 00                              cmpa #0
+23bc 27 03                              beq CONTROL_PANTALLA            ; si ya es 0, pasamos a siguiente func
+23be 73 10 21                           dec Cont_Delay                  ; decrementa
+                        
+23c1                    CONTROL_PANTALLA:
+23c1 fe 10 1f                           ldx CONT_7SEG                   ; carga contador de 7seg
+23c4 09                                 dex                             ; le decrementa
+23c5 7e 10 1f                           stx CONT_7SEG
+23c8 8e 00 00                           cpx #0
+23cb 26 0c                              bne CONTADOR_DISP               ; Si llega a 0, se le suman 5000 y volvemos a hacer conversiones
+23cd 18 03 13 88 10 1f                  movw #5000,CONT_7SEG
+23d3 16 22 e6                           jsr CONV_BIN_BCD
+23d6 16 23 3d                           jsr BCD_7SEG
+                        
+23d9                    CONTADOR_DISP:
+23d9 b6 10 12                           ldaa CONT_TICKS                 ; revisamos contador de ticks
+23dc 81 64                              cmpa #100
+23de 26 11                              bne MUX
+23e0 87                                 clra                            ; si llega a 100, se borra
+23e1 7a 10 12                           staa CONT_TICKS
+23e4 72 10 11                           inc CONT_DIG                    ;cambia de digito para pasar a multiplexar
+23e7 f6 10 11                           ldab CONT_DIG
+23ea c1 05                              cmpb #5                         ; Si llega a 5 se borra
+23ec 26 03                              bne MUX
+23ee 79 10 11                           clr CONT_DIG
+                        
+23f1                    MUX:
+23f1 f7 10 12                           tst CONT_TICKS                  ; si el contador no es 0 pasa a ver el ciclo de trabajo
+23f4 26 5c                              bne DT_BRILLO
+                        
+23f6 18 0b 02 02 68                     movb #$02,PTJ                   ; cuando es 0 ponemos dato en un display
+23fb 18 0b ff 02 58                     movb #$FF,PTP
+                        
+2400 f6 10 11                           ldab CONT_DIG                   ; cual display?
+2403 c1 00                              cmpb #0
+2405 27 19                              beq P4
+2407 c1 01                              cmpb #1
+2409 27 22                              beq P3
+240b c1 02                              cmpb #2
+240d 27 2b                              beq P2
+240f c1 03                              cmpb #3
+2411 27 34                              beq P1
+                        
+2413 18 0b 00 02 68                     movb #$00,PTJ
+2418 18 0c 10 0f 00 01                  movb LEDS,PORTB
+241e 20 32                              bra DT_BRILLO
+2420                    P4:
+2420 18 0b f7 02 58                     movb #$F7,PTP                         ;se habilita display 4
+2425 18 0c 10 1e 00 01                  movb DISP4,PORTB
+242b 20 25                              bra DT_BRILLO
+242d                    P3:
+242d 18 0b fb 02 58                     movb #$FB,PTP                         ;se habilita display 3
+2432 18 0c 10 1d 00 01                  movb DISP3,PORTB
+2438 20 18                              bra DT_BRILLO
+243a                    P2:
+243a 18 0b fd 02 58                     movb #$FD,PTP                         ;se habilita display 2
+243f 18 0c 10 1c 00 01                  movb DISP2,PORTB
+2445 20 0b                              bra DT_BRILLO
+2447                    P1:
+2447 18 0b fe 02 58                     movb #$FE,PTP                         ;se habilita display 1
+244c 18 0c 10 1b 00 01                  movb DISP1,PORTB
+2452                    DT_BRILLO:
+2452 86 64                              ldaa #100                       ;Modifica el ciclo de trabajo para aumentar o disminuir el brillo
+2454 b0 10 10                           suba BRILLO
+2457 7a 10 13                           staa DT
+                        
+245a b6 10 12                           ldaa CONT_TICKS                 ; si el contador llega a ciclo, termina
+245d b1 10 13                           cmpa DT
+2460 26 0a                              bne FIN_OC4
+2462 18 0b ff 02 58                     movb #$FF,PTP                         ;deshabilita displays de 7 segmentos
+2467 18 0b 02 02 68                     movb #$02,PTJ                         ;deshabilita LEDS
+246c                    FIN_OC4:
+246c 72 10 12                           inc CONT_TICKS
+246f 4c 4e 10                           bset TFLG1,$10                         ;reinicia la bandera de interrupcion
+2472 dc 44                              ldd TCNT                         ;Carga el valor actual de TCNT
+2474 c3 00 3c                           addd #60                         ;60 por preestaclador 8
+2477 5c 58                              std TC4                         ;actualiza el nuevo valor a alcanzar.
+2479 0b                                 rti
+                                        
+                        ;------------------------------------------------------------------------------
+247a b6 10 26           Cargar_LCD:     ldaa ADD_L1                           ;inicio de linea
+247d 16 24 c7                           jsr Send_Command                ;envía comando
+2480 18 0c 10 24 10 21                  movb D40uS,Cont_Delay           ;delay
+2486 16 24 c1                           jsr Delay
+                        
+2489 a6 30              LINEA1:         ldaa 1,x+                         ;Se va cargando mensaje
+248b 81 00                              cmpa #$00
+248d 27 0e                              beq CARGAR_LINEA2               ;Se pasa a cargar linea 2
+                        
+248f 16 24 fa                           jsr Send_Data
+                        
+2492 18 0c 10 24 10 21                  movb D40uS,Cont_Delay
+2498 16 24 c1                           jsr Delay
+249b 20 ec                              bra LINEA1
+                        
+                        
+249d b6 10 27           CARGAR_LINEA2:  ldaa ADD_L2                     ;inicio linea 2
+24a0 16 24 c7                           jsr Send_Command
+24a3 18 0c 10 24 10 21                  movb D40uS,Cont_Delay
+24a9 16 24 c1                           jsr Delay
+                        
+                        
+24ac a6 70              LINEA2:         ldaa 1,y+                       ; Se va cargando mensaje
+24ae 81 00                              cmpa #$00
+24b0 27 0e                              beq TERMINA_LCD
+24b2 16 24 fa                           jsr Send_Data
+24b5 18 0c 10 24 10 21                  movb D40uS,Cont_Delay           ; delay
+24bb 16 24 c1                           jsr Delay
+24be 20 ec                              bra LINEA2
+                        
+24c0 3d                 TERMINA_LCD:    rts
+                        
+                        
+                        ;------------------------------------------------------------------------------
+24c1                    Delay:
+24c1 f7 10 21                           tst Cont_Delay      ;Espera hasta que OC4 disminuya
+24c4 26 fb                              bne Delay
+24c6 3d                                 rts
+                        
+                        ;------------------------------------------------------------------------------
+                        
+24c7 36                 Send_Command:   psha                    ;se guarda a en pila
+24c8 84 f0                              anda #$F0               ;mascara de parte alta
+24ca 44                                 lsra                    ;deja limpios los dos bits menos significativos
+24cb 44                                 lsra
+                        
+24cc 5a 32                              staa PORTK              ;guarda a en portk
+24ce 4d 32 01                           bclr PORTK,$01          ;modif bits menos significativos
+24d1 4c 32 02                           bset PORTK,$02
+                        
+24d4 18 0c 10 23 10 21                  movb D260uS,Cont_Delay  ;delay
+24da 16 24 c1                           jsr Delay
+                        
+24dd 4d 32 02                           bclr PORTK,$02
+24e0 32                                 pula                    ;trae a
+24e1 84 0f                              anda #$0F               ;mascara parte baja
+24e3 48                                 lsla
+24e4 48                                 lsla
+                        
+24e5 5a 32                              staa PORTK
+24e7 4d 32 01                           bclr PORTK,$01
+24ea 4c 32 02                           bset PORTK,$02
+                        
+24ed 18 0c 10 23 10 21                  movb D260uS,Cont_Delay  ; delay
+24f3 16 24 c1                           jsr Delay
+                        
+24f6 4d 32 02                           bclr PORTK,$02
+24f9 3d                                 rts
+                        
+                        ;------------------------------------------------------------------------------
+24fa                    Send_Data:
+24fa 36                                 psha ;el dato se recibe en acumulador A y se protege para poder analizar sus nibbles por separado
+24fb 84 f0                              anda #$F0 ;Se deja solo el nibble superior del dato
+24fd 44                                 lsra
+24fe 44                                 lsra ;se alinea nibble con bus datos en PORTK5-PORTK2.
+24ff 5a 32                              staa PORTK ;se carga parte alta del dato en el bus de datos.
+2501 4c 32 03                           bset PORTK,$03 ;Se habilita el envio de dato y comunicacion con la LCD
+2504 18 0c 10 23 10 21                  movb D260us,Cont_Delay ;se inicia el retardo de 260us
+250a 16 24 c1                           jsr Delay
+250d 4d 32 02                           bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
+2510 32                                 pula ;se recupera el dato original de la pila
+2511 84 0f                              anda #$0F ;Se deja solo el nibble inferior del dato
+2513 48                                 lsla
+2514 48                                 lsla ;se alinea nibble con bus datos en PORTK5-PORTK2.
+2515 5a 32                              staa PORTK ;se carga parte baja del dato en el bus de datos.
+2517 4c 32 03                           bset PORTK,$03 ;Se habilita envio de datos y comunicacion con la LCD
+251a 18 0c 10 23 10 21                  movb D260us,Cont_Delay ;se inicia el retardo de 260us.
+2520 16 24 c1                           jsr Delay
+2523 4d 32 02                           bclr PORTK,$02 ;Se deshabilita comunicacion con la LCD
+2526 3d                                 rts
+                        
+                        ;------------------------------------------------------------------------------
+2527                    MODO_RUN:
+2527 f7 10 0e                           Tst TIMER_CUENTA         ;si timer cuenta es cero
+252a 26 26                              Bne Fin_Run                 ;si no lo es, se retorna
                         
                                         ;Caso en que timer cuenta es cero
                         
-2371 18 0c 10 18 10 0e                  Movb VMAX,TIMER_CUENTA ;se recarga con vmax
-2377 72 10 0a                           Inc CUENTA                 ;incrementamos cuenta
-237a b6 10 0a                           Ldaa CUENTA ;
-237d b1 10 0c                           Cmpa ValorVueltas ;
-2380 26 15                              Bne Fin_Run                 ;si cant!=cuenta
-2382 72 10 0b                           Inc AcmPQ                 ;se incrementa AcmPQ
-2385 4d 38 80                           Bclr CRGINT %10000000         ;se deshabilitamos RTI
-2388 18 0b 04 00 08                     Movb #$04,PORTE         ;activa el relay
-238d 86 64                              Ldaa #100
-238f b1 10 0b                           Cmpa AcmPQ
-2392 26 03                              Bne Fin_Run                 ; retorna si no llega a 100
-2394 79 10 0b                           CLR AcmPQ                 ;si se llega a 100, hay rebase
-2397                    Fin_Run:
-2397 18 0c 10 0a 10 14                  MOVB CUENTA,BIN1
-239d 18 0c 10 0b 10 15                  MOVB AcmPQ,BIN2
-23a3 3d                                 RTS
-                        
-                        
-                        ;------------------------------------------------------------------------------
-23a4 b6 10 26           Cargar_LCD:     ldaa ADD_L1                           ;inicio de linea
-23a7 16 21 63                           jsr Send_Command                ;envía comando
-23aa 18 0c 10 24 10 21                  movb D40uS,Cont_Delay           ;delay
-23b0 16 21 c3                           jsr Delay
-                        
-23b3 a6 30              LINEA1:         ldaa 1,x+                         ;Se va cargando mensaje
-23b5 81 00                              cmpa #$00
-23b7 27 0e                              beq CARGAR_LINEA2               ;Se pasa a cargar linea 2
-                        
-23b9 16 21 96                           jsr Send_Data
-                        
-23bc 18 0c 10 24 10 21                  movb D40uS,Cont_Delay
-23c2 16 21 c3                           jsr Delay
-23c5 20 ec                              bra LINEA1
-                        
-                        
-23c7 b6 10 27           CARGAR_LINEA2:  ldaa ADD_L2                     ;inicio linea 2
-23ca 16 21 63                           jsr Send_Command
-23cd 18 0c 10 24 10 21                  movb D40uS,Cont_Delay
-23d3 16 21 c3                           jsr Delay
-                        
-                        
-23d6 a6 70              LINEA2:         ldaa 1,y+                       ; Se va cargando mensaje
-23d8 81 00                              cmpa #$00
-23da 27 0e                              beq TERMINA_LCD
-23dc 16 21 96                           jsr Send_Data
-23df 18 0c 10 24 10 21                  movb D40uS,Cont_Delay           ; delay
-23e5 16 21 c3                           jsr Delay
-23e8 20 ec                              bra LINEA2
-                        
-23ea 3d                 TERMINA_LCD:    rts
-                        
-                        
-                        ;------------------------------------------------------------------------------
-23eb b6 10 0c           BCD_7SEG:       ldaa ValorVueltas                    ; Cargamos valor en ValorVueltas
-23ee 81 00                              cmpa #0                         ; si es zero se apagan pantallas 3 y 4
-23f0 26 18                              bne NOT_ZERO                    ; 1 y 2 en 0
-23f2 18 0b 00 10 1b                     movb #$00,DISP1
-23f7 18 0b 00 10 1c                     movb #$00,DISP2
-23fc 18 0c 10 40 10 1d                  movb SEGMENT,DISP3
-2402 18 0c 10 40 10 1e                  movb SEGMENT,DISP4
-2408 20 5a                              bra return_7seg
-                        
-240a ce 10 40           NOT_ZERO:       ldx #SEGMENT                    ; carga dir segmentos
-240d 86 0f                              ldaa #$0F                       ; mascara parte alta
-240f b4 10 19                           anda BCD1
-2412 18 0d e4 10 1e                     movb a,x,DISP4                  ; usamos direccionamiento indexado por acumulador usando valor en parte alta
-2417 86 f0                              ldaa #$F0                       ; mascara parte baja
-2419 b4 10 19                           anda BCD1
-241c 81 b0                              cmpa #$B0                       ; caso de digito vacío
-241e 27 0b                              beq caso_B                      ; movemos el nibble más alto hacia la derecha
-2420 44                                 lsra
-2421 44                                 lsra
-2422 44                                 lsra
-2423 44                                 lsra
-2424 18 0d e4 10 1d                     movb a,x,DISP3                  ; movemos a pantalla 3
-2429 20 05                              bra CUENTA_ACMPQ
-                        
-242b 18 0b 00 10 1d     caso_B:         movb #$00,DISP3                 ; pantalla 3 apagada
-                        
-2430                    CUENTA_ACMPQ:                                   ;Cantidad de paquetes en BCD2
-2430 1e 10 00 08 25                     brset Banderas,$08,BCD2_vacio
-                        
-2435 86 0f                              ldaa #$0F
-2437 b4 10 1a                           anda BCD2
-243a 18 0d e4 10 1c                     movb a,x,DISP2
-243f 86 f0                              ldaa #$F0
-2441 b4 10 1a                           anda BCD2
-2444 81 b0                              cmpa #$B0
-2446 27 0b                              beq caso_B_disp1
-2448 44                                 lsra
-2449 44                                 lsra
-244a 44                                 lsra
-244b 44                                 lsra
-244c 18 0d e4 10 1b                     movb a,x,DISP1
-2451 20 11                              bra return_7seg
-                        
-2453                    caso_B_disp1:                                         ;No hay paquetes completos aún
-2453 18 0b 00 10 1b                     movb #$00,DISP1
-2458 20 0a                              bra return_7seg
-                        
-                        
-245a 18 0b 00 10 1b     BCD2_vacio:     movb #$00,DISP1                       ;apaga 1 y 2
-245f 18 0b 00 10 1c                     movb #$00,DISP2
-                        
-2464                    return_7seg:
-2464 3d                                 rts
-                        
-                        
-                        
-                        
-                        
-                        ;------------------------------------------------------------------------------
-2465 4c 37 80           RTI_ISR:        bset CRGFLG %10000000                 ;borra bandera de interrupcion RTI
-2468 f7 10 0e                           tst TIMER_CUENTA
-246b 27 03                              beq REBOTES                          ;Si TIMER CUENTA es cero, pasamos a revisar los rebotes
-246d 73 10 0e                           dec TIMER_CUENTA                 ;Solo se decrementa si TIMER CUENTA no es cero
-                        
-2470 f7 10 04           REBOTES:        tst Cont_Reb
-2473 27 03                              beq FIN_REB                        ;si llegaron los rebotes a 0, se termina la rubrutina
-2475 73 10 04                           dec Cont_Reb                         ;Decrementamos el contador de rebotes si aun no ha llegado a cero
-                        
-2478                    FIN_REB:
-2478 f7 10 05                           Tst CONT_RTI
-247b 27 05                  		Beq REFRESCAR
-247d 73 10 05               		Dec CONT_RTI
-2480 20 0a                  		Bra FIN_RTI
-2482                    REFRESCAR:
-2482 18 0b 28 10 05        		Movb #CONT_200,CONT_RTI ;Volvemos al contador con 100
-2487 18 0b 80 00 85                     Movb #$80,ATD0CTL5
-248c                    FIN_RTI:
-248c 0b                    		Rti
-                        
-                        
-                        
-                        
-                        
-                        ;------------------------------------------------------------------------------
-248d 1e 10 00 08 1e     PTH_ISR:        Brset Banderas,$08,PH_CONFIG         ;Si esa en modo config no toma en cuenta PH0 Y PH1
-2492 1f 02 67 01 0d                     Brclr PIFH $01 PTH1                 ;si es 1, se revisa por la siguiente fuente de interrupcion
-                                        ;CASO DE PH0
-2497 1c 02 67 01                        Bset PIFH $01                         ;apagamos las interrupciones de PH0
-249b 79 10 0a                           Clr CUENTA                         ;borramos cuenta
-249e 4c 38 80                           Bset CRGINT %10000000                 ;Habilita interrupciones de RTI
-24a1 79 00 08                           Clr PORTE                         ;apagamos el relay
-                        
-24a4                    PTH1:
-24a4 1f 02 67 02 07                     brclr PIFH $02 PH_CONFIG         ;Si no tiene PH1, revisa PH2
-                                        ;Caso de PH1
-24a9 1c 02 67 02                        bset PIFH $02                         ;se apaga la bandera de la fuente de interrupcion
-24ad 79 10 0b                           clr AcmPQ                         ;se limpia el acumulador
-24b0                    PH_CONFIG:
-24b0 1f 02 67 04 11                     Brclr PIFH $04 PTH3                 ;No hay PH3, revisa ph4
-24b5 1c 02 67 04                        Bset PIFH $04                         ;se apaga la bandera de la fuente de interrupcion
-24b9 f7 10 10                           Tst BRILLO
-24bc 27 08                              Beq PTH3                         ;Caso de brillo minimo, ya no se puede restar
-24be b6 10 10                           Ldaa BRILLO
-24c1 80 05                              Suba #5
-24c3 7a 10 10                           Staa BRILLO                         ;se le resta 5 a BRILLO
-24c6                    PTH3:
-24c6 1f 02 67 08 13                     Brclr PIFH $08 FIN_PTH                 ;no hay ph4, termina de revisar
-24cb 1c 02 67 08                        Bset PIFH $08                         ;se apaga la fuente de interrupcion
-24cf 86 64                              Ldaa #100
-24d1 b1 10 10                           Cmpa BRILLO
-24d4 27 08                              Beq FIN_PTH                         ;Maximo brillo posible, termina la subrutina
-24d6 b6 10 10                           Ldaa BRILLO
-24d9 8b 05                              Adda #5
-24db 7a 10 10                           Staa BRILLO                     ;se le suma 5 a BRILLO
-24de                    FIN_PTH:
-24de 0b                                 Rti                             ;termina la subrutina
-                        
-                        
-                        ;------------------------------------------------------------------------------
-24df                    OC4_ISR:
-24df b6 10 21                           ldaa Cont_Delay                 ;Revisamos Cont_Delay para ver si hay que restarle
-24e2 81 00                              cmpa #0
-24e4 27 03                              beq CONTROL_PANTALLA            ; si ya es 0, pasamos a siguiente func
-24e6 73 10 21                           dec Cont_Delay                  ; decrementa
-                        
-24e9                    CONTROL_PANTALLA:
-24e9 fe 10 1f                           ldx CONT_7SEG                   ; carga contador de 7seg
-24ec 09                                 dex                             ; le decrementa
-24ed 7e 10 1f                           stx CONT_7SEG
-24f0 8e 00 00                           cpx #0
-24f3 26 0c                              bne CONTADOR_DISP               ; Si llega a 0, se le suman 5000 y volvemos a hacer conversiones
-24f5 18 03 13 88 10 1f                  movw #5000,CONT_7SEG
-24fb 16 22 1f                           jsr CONV_BIN_BCD
-24fe 16 23 eb                           jsr BCD_7SEG
-                        
-2501                    CONTADOR_DISP:
-2501 b6 10 12                           ldaa CONT_TICKS                 ; revisamos contador de ticks
-2504 81 64                              cmpa #100
-2506 26 11                              bne MUX
-2508 87                                 clra                            ; si llega a 100, se borra
-2509 7a 10 12                           staa CONT_TICKS
-250c 72 10 11                           inc CONT_DIG                    ;cambia de digito para pasar a multiplexar
-250f f6 10 11                           ldab CONT_DIG
-2512 c1 05                              cmpb #5                         ; Si llega a 5 se borra
-2514 26 03                              bne MUX
-2516 79 10 11                           clr CONT_DIG
-                        
-2519                    MUX:
-2519 f7 10 12                           tst CONT_TICKS                  ; si el contador no es 0 pasa a ver el ciclo de trabajo
-251c 26 5c                              bne DT_BRILLO
-                        
-251e 18 0b 02 02 68                     movb #$02,PTJ                   ; cuando es 0 ponemos dato en un display
-2523 18 0b ff 02 58                     movb #$FF,PTP
-                        
-2528 f6 10 11                           ldab CONT_DIG                   ; cual display?
-252b c1 00                              cmpb #0
-252d 27 19                              beq P4
-252f c1 01                              cmpb #1
-2531 27 22                              beq P3
-2533 c1 02                              cmpb #2
-2535 27 2b                              beq P2
-2537 c1 03                              cmpb #3
-2539 27 34                              beq P1
-                        
-253b 18 0b 00 02 68                     movb #$00,PTJ
-2540 18 0c 10 0f 00 01                  movb LEDS,PORTB
-2546 20 32                              bra DT_BRILLO
-2548                    P4:
-2548 18 0b f7 02 58                     movb #$F7,PTP                         ;se habilita display 4
-254d 18 0c 10 1e 00 01                  movb DISP4,PORTB
-2553 20 25                              bra DT_BRILLO
-2555                    P3:
-2555 18 0b fb 02 58                     movb #$FB,PTP                         ;se habilita display 3
-255a 18 0c 10 1d 00 01                  movb DISP3,PORTB
-2560 20 18                              bra DT_BRILLO
-2562                    P2:
-2562 18 0b fd 02 58                     movb #$FD,PTP                         ;se habilita display 2
-2567 18 0c 10 1c 00 01                  movb DISP2,PORTB
-256d 20 0b                              bra DT_BRILLO
-256f                    P1:
-256f 18 0b fe 02 58                     movb #$FE,PTP                         ;se habilita display 1
-2574 18 0c 10 1b 00 01                  movb DISP1,PORTB
-257a                    DT_BRILLO:
-257a 86 64                              ldaa #100                       ;Modifica el ciclo de trabajo para aumentar o disminuir el brillo
-257c b0 10 10                           suba BRILLO
-257f 7a 10 13                           staa DT
-                        
-2582 b6 10 12                           ldaa CONT_TICKS                 ; si el contador llega a ciclo, termina
-2585 b1 10 13                           cmpa DT
-2588 26 0a                              bne FIN_OC4
-258a 18 0b ff 02 58                     movb #$FF,PTP                         ;deshabilita displays de 7 segmentos
-258f 18 0b 02 02 68                     movb #$02,PTJ                         ;deshabilita LEDS
-2594                    FIN_OC4:
-2594 72 10 12                           inc CONT_TICKS
-2597 4c 4e 10                           bset TFLG1,$10                         ;reinicia la bandera de interrupcion
-259a dc 44                              ldd TCNT                         ;Carga el valor actual de TCNT
-259c c3 00 3c                           addd #60                         ;60 por preestaclador 8
-259f 5c 58                              std TC4                         ;actualiza el nuevo valor a alcanzar.
-25a1 0b                                 rti
+252c 18 0c 10 18 10 0e                  Movb VMAX,TIMER_CUENTA ;se recarga con vmax
+2532 72 10 0a                           Inc CUENTA                 ;incrementamos cuenta
+2535 b6 10 0a                           Ldaa CUENTA ;
+2538 b1 10 0c                           Cmpa ValorVueltas ;
+253b 26 15                              Bne Fin_Run                 ;si cant!=cuenta
+253d 72 10 0b                           Inc AcmPQ                 ;se incrementa AcmPQ
+2540 4d 38 80                           Bclr CRGINT %10000000         ;se deshabilitamos RTI
+2543 18 0b 04 00 08                     Movb #$04,PORTE         ;activa el relay
+2548 86 64                              Ldaa #100
+254a b1 10 0b                           Cmpa AcmPQ
+254d 26 03                              Bne Fin_Run                 ; retorna si no llega a 100
+254f 79 10 0b                           CLR AcmPQ                 ;si se llega a 100, hay rebase
+2552                    Fin_Run:
+2552 18 0c 10 0a 10 14                  MOVB CUENTA,BIN1
+2558 18 0c 10 0b 10 15                  MOVB AcmPQ,BIN2
+255e 3d                                 RTS
 
-Executed: Tue Feb 23 00:42:18 2021
-Total cycles: 1613, Total bytes: 1534
+Executed: Tue Feb 23 23:48:23 2021
+Total cycles: 1531, Total bytes: 1465
 Total errors: 0, Total warnings: 0
