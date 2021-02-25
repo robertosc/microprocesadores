@@ -472,8 +472,28 @@ end_formar:     movb #$FF,Tecla_IN
 ;------------------------------------------------------------------------------
 
 ATD_ISR:
-
-
+    Ldd ADR00H
+    Addd ADR01H
+    Addd ADR02H
+    Addd ADR03H
+    Addd ADR04H
+    Addd ADR05H
+    ;Tenemos en RR1 la suma de los 6 numeros
+    Ldx #6
+    Idiv ;X = D/X para el promedio
+    Tfr X,D
+    Stab Pot ;Dado por el enunciado para guardar el promedio
+    
+    Ldaa #20
+    Mul ; POT*20
+    Ldx #255
+    Idiv ; X=POT*20/255
+    TFR X,D 
+    STAB BRILLO
+    LDAA #5 ;Se multiplica por 5 para volverlo en escala a 100
+    MUL
+    STAB DT
+    RTI
 ;------------------------------------------------------------------------------
 
 Competencia:
@@ -496,7 +516,25 @@ TCNT_ISR:
 
 ;------------------------------------------------------------------------------
 CONV_BIN_BCD:
-                Ldaa BIN1
+
+		Ldaa BIN1
+
+		Cmpa #$BB
+		Beq BIN1_BB
+
+		Cmpa #$AA
+		Beq BIN1_AA
+
+		Bra BIN1_CALC
+
+BIN1_BB:	Movb #$BB,BCD1
+		Bra BIN2_CHECK
+
+BIN1_AA:	Movb #$AA,BCD1
+		Bra BIN2_CHECK
+
+
+BIN1_CALC:   
                 Jsr BIN_BCD ;Pasamos BIN1 a BCD
                 Ldaa BCD_L
                 Cmpa #10
@@ -504,15 +542,36 @@ CONV_BIN_BCD:
                 Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
 
 mayor1          Staa BCD1 ;Guardamos el valor en BCD1
-                Ldaa BIN2
-                Jsr BIN_BCD ;Pasamos BIN2 a BCD
+
+
+BIN2_CHECK:	Ldaa BIN2
+
+		Cmpa #$BB
+		Beq BIN2_BB
+
+		Cmpa #$AA
+		Beq BIN2_AA
+
+		Bra BIN2_CALC
+
+BIN2_BB:	Movb #$BB,BCD2
+		Bra FIN_CONV
+
+BIN2_AA:	Movb #$AA,BCD2
+		Bra FIN_CONV
+
+
+BIN2_CALC:   
+                Jsr BIN_BCD ;Pasamos BIN1 a BCD
                 Ldaa BCD_L
                 Cmpa #10
                 Bhs mayor2
-                Adda #$B0 ;Si es de un solo digito, agrega B en decenas
+                Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
 
-mayor2          Staa BCD2 ;Guardamos en BCD2
-                Rts
+mayor2          Staa BCD2 ;Guardamos el valor en BCD1
+
+
+FIN_CONV:	Rts
 
 
 ;------------------------------------------------------------------------------
