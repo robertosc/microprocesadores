@@ -8,7 +8,7 @@
 ;   se desean medir, el modo libre para tener al sistema en un tipo de modo ocioso, el modo competencia que mide la velocidad y
 ;   la cantidad de vueltas realizadas por un ciclista y el modo resumen que le muestra al ciclista su rendimiento en forma de la
 ;   velocidad promedio en la cantidad de vueltas medida. Todo el intercambio de informacion con el ciclista ocurre por medio del
-;   despliegue de datos en la pantalla LCD y la pantalla de 7 segmentos, as� como el teclado matricial en el caso del modo config.
+;   despliegue de datos en la pantalla LCD y la pantalla de 7 segmentos, as? como el teclado matricial en el caso del modo config.
 ;
 ;##############################################################################
 #include registers.inc
@@ -30,7 +30,7 @@
 
 
 ;Estructuras de datos:
-                ORG $1000\
+                ORG $1000
                         ;COMPE:X:X:
 Banderas:       DS 1  ;Tiene el formato: COMPE:COMPE_STATE:X:CALC_TICKS:PANT_FLG:ARRAY_OK:TCL_LEIDA:TCL_LISTA.
                       ;MOD_PREV_H y MOD_PREV_L indican el modo de funcionamiento previo al que se utiliza, usado para funcionamiento de los modos competencia y libre
@@ -39,49 +39,60 @@ Banderas:       DS 1  ;Tiene el formato: COMPE:COMPE_STATE:X:CALC_TICKS:PANT_FLG
                       ;TCL_LEIDA indica que ya se habia tenido una lectura del teclado y que se estaba esperando a que se diera la supresion de rebotes.
                       ;TCL_LISTA indica que luego de la supresion de rebotes se confirmo que si se presiono una tecla.
 
-NumVueltas:     DS 1  ;cantidad maxima de vueltas a leer
-ValorVueltas:   DS 1  ;variable de transicion para la lectura de NumVueltas con rebote de botones
-MAX_TCL:        DB 2  ;cantidad maximas de teclas que se leen
-Tecla:          DS 1  ;en esta variable se almacena el valor leido del teclado en la subrutina MUX_TECLADO.
-Tecla_IN:       DS 1  ;en esta variable se almacena temporalmente el valor de Tecla antes de la supresion de rebotes. Si despues de la supresion se da que Tecla y Tecla_IN son iguales es porque efectivamente se presiono una tecla que debe ser guardada.
-Cont_Reb:       DS 1  ;es gel contador de ticks del RTI, usado para suprimir rebotes.
-Cont_TCL:       DS 1  ;es el indice utilizado para escribir en el arreglo que guarda las teclas presionadas.
-Patron:         DS 1  ;es el indice que lleva las iteraciones en subrutina MUX_TECLADO.
-Num_Array:      DS 2  ;en este arreglo se almacenan todas las teclas presionadas por el usuario.
-BRILLO:         DS 1  ;Variable controlada por PTH3/PTH2 para incrementar/decrementar el brillo de la pantalla LCD.
-POT:            DS 1  ;Variable que lee el potenciometro
-TICK_EN:        DS 2  ;define el tiempo que estara encendida la pantalla
-TICK_DIS:       DS 2  ;define el tiempo que estara apagada la pantalla
-VELOC:          DS 1  ;la velocidad medida
-VUELTAS:        DS 1  ;cantidad de vueltas realizadas
-VELPROM:        DS 1  ;velocidad promedio del ciclista
-TICK_MED:       DS 2  ;ticks utilizados para sensar la velocidad del ciclista
-BIN1:           DS 1  ;variable de entrada a subrutina CONV_BIN_BCD. Utilizada para ValorVueltas
-BIN2:           DS 1  ;variable de entrada a subrutina CONV_BIN_BCD.
-BCD1:           DS 1  ;variable de salida de subrutina BIN_BCD. Tambien es entrada para BCD_7SEG. Utilizada para ValorVueltas.
-BCD2:           DS 1  ;variable de salida de subrutina BIN_BCD. Tambien es entrada para BCD_7SEG. 
-BCD_L:          DS 1  ;variable donde se guarda la salida de BIN_BCD. Utilizada para CONV_BIN_BCD.
-BCD_H:          DS 1  ;variable de conversion
-TEMP:           DS 1  ;variable temporal para conversiones
-LOW:            DS 1  ;variable requerida para el algoritmo de la subrutina BIN_BCD.
-DISP1:          DS 1  ;corresponde al valor que se escribe en el display de 7 segmentos.
-DISP2:          DS 1  ;BCD2 utiliza DISP1 y DISP2 para desplegarse
-DISP3:          DS 1  ;corresponde al valor que se escribe en el display de 7 segmentos.
-DISP4:          DS 1  ;BCD1 utiliza DISP3 y DISP4 para desplegarse
+NumVueltas:     ds 1
+ValorVueltas:   ds 1
 
-LEDS            DS 1  ;guarda el estado de los LEDS
-CONT_DIG:       DS 1  ;cuenta cual digito de 7 segmentos se debe habilitar. Cambia cada vez que CONT_TICKS alcanza 100.
-CONT_TICKS:     DS 1  ;contador de ticks de Output Compare para multiplexar.
-DT:             DS 1  ;ciclo de trabajo. DT = N-K.
-CONT_7SEG:      DS 2  ;contador de ticks de OC4 para lograr refrescamiento de LEDS y Displays a 10Hz.
-CONT_200:       DS 1  ;para conteo de 200 ms en RTI para el ATD
-Cont_Delay:     DS 1  ;esta variable se carga con alguna de las siguientes tres constantes para generar retrasos temporales.
-D2ms:           DB 100  ;100 ticks a 50kHz son 2 milisegundos
-D260us:         DB 13  ;13 ticks a 50kHz son 260 microsegundos
-D40us:          DB 3  ;2 ticks a 50kHz son 40 microsegundos
-CLEAR_LCD:      DB $01  ;comando para limpiar el LCD
-ADD_L1:         DB $80  ;direccion inicio de linea 1
-ADD_L2:         DB $C0  ;direccion inicio de linea 2
+MAX_TCL:        db 2  ;Maximo numero de teclas leidas
+Tecla:          ds 1  ;Variable que almacena la tecla leida
+Tecla_IN:       ds 1  ;Valor temporal tomado por el teclado
+Cont_Reb:       ds 1  ;Contador para eliminar los probelemas de rebotes
+Cont_TCL:       ds 1  ;Indice para el array de teclas
+Patron:         ds 1  ;Indice para MUX TECLADO
+Num_Array:      ds 2  ;Todas las teclas guardadas
+
+BRILLO:         ds 1  ;Brillo elegido por el usuario de la pantalla
+POT:            ds 1
+
+TICK_EN:        ds 2
+TICK_DIS:       ds 2
+
+Veloc:          ds 1
+Vueltas:        ds 1
+VelProm:        ds 1
+
+TICK_MED:       ds 2
+
+BIN1:           ds 1  ;variable en binario de CantPQ y CUENTA
+BIN2:           ds 1  ;variable en binario de AcmPQ
+BCD1:           ds 1  ;Mismo valor que BIN1 pero en BCD
+BCD2:           ds 1  ;Mismo valor que BIN2 pero en BCD
+
+BCD_L:          ds 1
+BCD_H:          ds 1
+TEMP:           ds 1
+LOW:            ds 1
+
+DISP1:          ds 1  ;BCD2 para display de 7 segmentos (primer byte)
+DISP2:          ds 1  ;BCD2 para display de 7 segmentos (segundo byte)
+DISP3:          ds 1  ;Mismo caso que disp 1 y disp 2 pero para BCD1 (3 Y 4 RESPECTIVAMENTE)
+DISP4:          ds 1
+
+LEDS:           ds 1  ;PB1 para modo CONFIG, PB0 a modo RUN.
+CONT_DIG:       ds 1  ;Habilitador de pantalla
+CONT_TICKS:     ds 1  ;contador para el Output Compare
+DT:             ds 1  ;ciclo de trabajo. DT = N-K
+CONT_7SEG:      ds 2  ;contador de ticks de OC4
+
+CONT_200:       ds 1
+
+Cont_Delay:     ds 1
+D2ms:           db 100  ;2 milisegundos
+D260us:         db 12  ;modificar    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+D40us:          db 2  ;40 microsegundos
+CLEAR_LCD:      db $01  ;comando para limpiar el LCD
+ADD_L1:         db $80  ;direccion inicio de linea 1
+ADD_L2:         db $C0  ;direccion inicio de linea 2
+
 BanderasEx:     DS 1    ;Banderas de uso adicionales. Tiene el formato: X:X:X:X:X:DISPLAY_CALC:CANT_VUELTAS_MAXIMA:X
                         ;CANT_VUELTAS_MAXIMA indica cuando Vueltas se vuelve igual a NumVueltas
                         ;DISPLAY_CALC es utilizado para mostrar el Mensaje Calculando en el momento apropiado
@@ -107,32 +118,35 @@ DDRAM_ADDR2:    EQU $C0
 EOM:            EQU $00
 
                 ORG $1070 ;mensajes
-RunMeter:       FCC "  RunMeter 623  "
-                DB EOM
-Esperando:      FCC "  ESPERANDO...  "
-                DB EOM
-Calculando:     FCC "CALCULANDO...   "
-                DB EOM
-LIBRE_MSG:      FCC "   MODO LIBRE   "
-                DB EOM
-CONFIG_MSG1:    FCC "  MODO CONFIG   "
-                DB EOM
-CONFIG_MSG2:    FCC "  NUM VUELTAS   "
-                DB EOM
-COMP_MSG1:      FCC " M. COMPETENCIA "
-                DB EOM
-COMP_MSG2:      FCC "VUELTA     VELOC"
-                DB EOM
-RESUM_MSG1:     FCC "  MODO RESUMEN  "
-                DB EOM
-RESUM_MSG2:     FCC "VUELTAS    VELOC"
-                DB EOM
-ALERT_MSG1:     FCC "** VELOCIDAD ** "
-                DB EOM
-ALERT_MSG2:     FCC "*FUERA DE RANGO*"
-                DB EOM
-;------------------------------------------------------------------------------
+MSG_LIBRE1:     fcc "  RunMeter 623  "
+                db EOM
+MSG_LIBRE2:     fcc "   MODO LIBRE   "
+                db EOM
 
+MSG_COMPE1:            fcc "M.COMPETENCIA"
+                db EOM
+MSG_COMPE2:     fcc "VUELTA    VELOC"
+                db EOM
+
+MSG_CONFIG1:    fcc "  MODO CONFIG   "
+                db EOM
+MSG_CONFIG2:    fcc "  NUM VUELTAS   "
+                db EOM
+
+MSG_ESPERA:     fcc "  Esperando...  "
+                db EOM
+
+MSG_CALCULANDO: fcc "  CALCULANDO... "
+                db EOM
+
+MSG_ALERTA1:    fcc "** VELOCIDAD **"
+                db EOM
+
+MSG_ALERTA2:    fcc "*FUERA DE RANGO*"
+                db EOM
+
+MSG_RESUMEN:    fcc "  MODO RESUMEN  "
+                db EOM
 
 
 ;*******************************************************************************
@@ -147,22 +161,22 @@ ALERT_MSG2:     FCC "*FUERA DE RANGO*"
     MOVB #$31,RTICTL      ;periodo de 1.024 ms
 
 ;Configuracion keywakeup en puerto H:
-    BCLR PIEH,%00001001   ;se deshabilita keywakeup en PH0 y PH3.
+    BCLR PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
     MOVB #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
 
 ;Configuracion PH7-PH6 como entrada de proposito general por polling: (Dipswitch)
-    BCLR DDRH %11000000
+    BCLR DDRH,$C0
 
 ;Configuracion del teclado en puerto A:
     MOVB #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
     BSET PUCR %00000001   ;resistencias de pull-up en puerto A. Son necesarias para que haya un 1 en el PAD cuando no se presiona ningun boton del teclado.
 
 ;Configuracion del modulo de Timer como Output Compare en el Canal 4:
-    BSET TSCR1 %10000000 ;se habilita modulo de timer.
-    BSET TSCR2 %00000100 ;prescaler es 2^3 = 8
-    BSET TIOS %00010000 ;se configura el canal 4 como Output Compare.
-    BSET TIE %00010000 ;se habilita interrupcion del canal 4.
-    BCLR TCTL1 3 ;no es necesario que haya una salida en puerto T. Solo se requiere la interrupcion.
+    BSET TSCR1 %10000000 ;Habilita modulo temporizacion
+    BSET TSCR2 %00000100 ;Preescalador magnitud 16
+    BSET TIOS %00010000 ;Habilida canal 4
+    BSET TIE %00010000 ;Interrup en canal 4
+    BCLR TCTL1 3 ;revisar
 
 ;Configuracion de los displays de 7 segmentos y los LEDS.
     MOVB #$FF,DDRB ;puerto core B se configura como salida de proposito general. (LEDS y SEGMENTOS)
@@ -174,7 +188,7 @@ ALERT_MSG2:     FCC "*FUERA DE RANGO*"
 
 ;Configuracion del ATD
     MOVB #$30,ATD0CTL3
-    MOVB #$B9,ATD0CTL4
+    MOVB #$B3,ATD0CTL4
     MOVB #$87,ATD0CTL5
 
     CLI        ;habilita interrupciones mascarables.
@@ -191,8 +205,8 @@ ALERT_MSG2:     FCC "*FUERA DE RANGO*"
     CLR Patron
     LDAA MAX_TCL
     LDX #NUM_ARRAY-1
-    
-    
+
+
 BORRAR_ARRAY:
     movb #$FF,A,X
     dbne A,BORRAR_ARRAY
@@ -205,8 +219,6 @@ BORRAR_ARRAY:
     movb #$02,LEDS
     clr BCD1
     clr BCD2
-    ;movb SEGMENT,DISP1 ;
-    ;movb SEGMENT,DISP2 ;
     movb SEGMENT,DISP3 ;
     movb SEGMENT,DISP4 ;
 
@@ -223,6 +235,18 @@ BORRAR_ARRAY:
     MOVW #$0000,TICKS_TIME
     MOVW #$0000,TICK_EN
     MOVW #$0000,TICK_DIS
+
+    BSET TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
+    BSET TSCR1,$80 ;se habilita el modulo de timer
+    LDD TCNT
+    ADDD #30
+    STD TC4 ;se carga el valor inicial para interrupcion de OC4
+    BSET CRGINT,$80 ;se habilitan las interrupciones RTI
+    ;se habilitan las interrupciones por ATD0
+    MOVB #$C2,ATD0CTL2
+    LDAA #160
+CONFIG_ATD:
+    DBNE A,CONFIG_ATD ;3 ciclos del reloj * 160 * (1/48MHz) = 10 us. Tiempo de inicio del ATD
 
 ;Conf LCD
                     ldx #iniDsp
@@ -241,32 +265,48 @@ INITIALIZE_LCD:
                 jsr Send_Command
                 movb D2ms,Cont_Delay    ;delay
                 jsr Delay
-    
+
+
 ;------------------------------------------------------------------------------
 MAIN:
-    BSET TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
-    BSET TSCR1,$80 ;se habilita el modulo de timer
-    LDD TCNT
-    ADDD #30
-    STD TC4 ;se carga el valor inicial para interrupcion de OC4
-    BSET CRGINT,$80 ;se habilitan las interrupciones RTI
-    ;se habilitan las interrupciones por ATD0
-    MOVB #$C2,ATD0CTL2
-    LDAA #160
-CONFIG_ATD:
-    DBNE A,CONFIG_ATD ;3 ciclos del reloj * 160 * (1/48MHz) = 10 us. Tiempo de inicio del ATD
 
 ;Entra a la primera configuracion
 FIRST_CONFIG:
-    movb #$BB,BIN2
-    movb #$BB,BIN1
-    jsr MODO_CONFIG ;Mientras NumVueltas no sea distinto de 0, se seguira leyendo por un valor valido
-    tst NumVueltas
-    beq FIRST_CONFIG
+                movb #$BB,BIN2   	;apaga pantallas 7seg
+		movb #$BB,BIN1
+		jsr MODO_CONFIG ;Se mantiene hasta que se ingrese un numero de vueltas
+		tst NumVueltas
+		beq FIRST_CONFIG
+                bra DIP_SWITCH
 
 
-    
-LECTURA_MODO:
+GO_LIBRE:
+		jsr MODO_LIBRE
+		bra DIP_SWITCH
+
+
+GO_COMP:
+		jsr MODO_COMP     ;se ejecuta el modo competicion
+		bra DIP_SWITCH  ;se vuelve a leer el modo de operacion
+
+
+GO_RESUM:
+		jsr MODO_RESUM       ;se ejecuta el modo resumen
+		bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
+
+
+GO_CONF:
+		jsr MODO_CONFIG      ;se ejecuta el modo config
+		bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
+
+
+
+
+;------------------------------------------------------------------------------
+;       Subrutinas de interrupciones
+;------------------------------------------------------------------------------
+
+DIP_SWITCH:
     brclr PTIH,#$C0,GO_LIBRE
     brset CRGINT,$80,CONTINUE_CHECK
     bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
@@ -277,58 +317,7 @@ CONTINUE_CHECK:
 CONF_COMP:
     brclr PTIH,#$80,GO_CONF
     bra GO_COMP
-
-
-GO_LIBRE:
-    ;si no es ni modo competencia ni modo resumen, se limpian VELOC, VUELTAS, VELPROM y se deshabilitan interrupciones por TCNT y PTH
-    jsr MODO_LIBRE
-    bra LECTURA_MODO
-
     
-GO_COMP:
-    brset Banderas,$80,COMPE_INGRESO
-    ldx #RunMeter   ;se carga el mensaje inicial
-    ldy #Esperando
-    jsr Cargar_LCD
-    movb #$BB,BIN1
-    MOVB #$BB,BIN2
-    bset TSCR2,$80        ;se habilita TCNT
-    bset PIEH,%00001001   ;se habilita keywakeup en PH0 y PH3.
-    bclr Banderas,$04 ;en este caso solo es necesario borrar ARRAY_OK
-
-    clr ValorVueltas
-    clr VUELTAS
-    clr VELPROM
-    clr VELOC
-    clr Num_Array
-    
-COMPE_INGRESO:
-    BSET Banderas,$80 ;se actualiza el modo previo
-    JSR MODO_COMP     ;se ejecuta el modo competicion
-    JMP LECTURA_MODO  ;se vuelve a leer el modo de operacion
-    
-
-GO_RESUM:
-    Bclr Banderas,$80    ;se actualiza el modo previo
-    BCLR PIEH,$09  ;se deshabilita keywakeup en PH0 y PH3
-    JSR MODO_RESUM       ;se ejecuta el modo resumen
-    JMP LECTURA_MODO     ;se vuelve a leer el modo de operacion
-    
-
-GO_CONF:
-    BCLR Banderas,$80   ; borra bandera de competencia just in case
-    ;si no es ni modo competencia ni modo resumen, se limpian VELOC, VUELTAS, VELPROM y se deshabilitan interrupciones por TCNT y PTH
-    clr VELOC
-    JSR MODO_CONFIG      ;se ejecuta el modo config
-    JMP LECTURA_MODO     ;se vuelve a leer el modo de operacion
-    
-    
-    
-    
-;------------------------------------------------------------------------------
-;       Subrutinas de interrupciones
-;------------------------------------------------------------------------------
-
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion PTH CALCULAR: Subrutina utilizada para la lectura de los sensores y subsecuentes
 ;      calculos de velocidad, velocidad promedio, cantidad de vueltas y ticks necesarios para recorrer 100 m.
@@ -347,12 +336,12 @@ CALCULAR:
 ;      Formula para calcular la velocidad: VELOC = 9064/TICK_MED
 ;      Formula para calcular/actualizar la velocidad promedio: VELPROM = (VELPROM*(VUELTAS-1) + VELOC)/VUELTAS
 ;------------------------------------------------------------------------------
-                
+
 PH0_ISR:
                 bset PIFH,$01 ;se limpia la bandera
                 tst Cont_Reb ;se revisa si se terminaron los rebotes
                 bne FIN_PH0
-                
+
                 movb #100,Cont_Reb ;se recarga cont_reb para control de rebotes
                 ldx TICK_MED ;se lee la cantidad de ticks medidos
 
@@ -393,7 +382,7 @@ VEL_INVAL:
 
 FIN_PH0:
                 rti
-                
+
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion PTH3: Subrutina de atencion a la interrupcion por key wakeup en PH3. Simula el primer sensor
 ;      del velodromo y se encarga de borrar TICK_MED, asi como indicar que se debe cargar el Mensaje Cargando en la pantalla LCD
@@ -438,7 +427,7 @@ CHECK_EN_TCNT:
                 DEX ;si no se cumple ninguna las dos condiciones revisadas, se decrementa y guarda el valor
                 STX TICK_EN
                 BRA CHECK_DIS_TCNT
-                
+
 EN_IS_0_TCNT:
                 MOVW #$FFFF,TICK_EN
                 BSET Banderas,$08 ;se levanta PANT_FLG
@@ -456,10 +445,10 @@ CHECK_DIS_TCNT:
 DIS_IS_0_TCNT:
                 MOVW #$FFFF,TICK_DIS
                 BCLR Banderas,$08 ;se desactiva PANT_FLG
-                
+
 FIN_TCNT:
                 RTI
-    
+
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion ATD0: Subrutina utilizada para la conversion analogica digital del potenciometro
 ;      de la tarjeta dragon 12, utilizado para controlar el brillo de los leds y las pantallas de 7 segmentos.
@@ -467,7 +456,7 @@ FIN_TCNT:
 ;      INPUTS: ADR00H,ADR01H,ADR02H,ADR03H,ADR04H,ADR05H
 ;      OUTPUTS: BRILLO, DT
 ;------------------------------------------------------------------------------
-    
+
 ATD_ISR:
                 ldx #6
                 ldd ADR00H   ;Se calcula el promedio de las 6 medidas del potenciometro
@@ -483,11 +472,11 @@ ATD_ISR:
                 mul
                 ldx #255
                 idiv
-		tfr X,D
+                tfr X,D
                 stab BRILLO
 
                 RTI
-    
+
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion RTI: Esta subrutina descuenta contadores
 ;     siempre y cuando no sean cero. Los ticks del RTI duran 1.024 ms, por lo
@@ -516,7 +505,7 @@ NO_RESET:           dec CONT_200                          ;Decrementamos el cont
 
 
 FIN_RTI:        Rti
-                
+
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion por output compare en el canal 4:
 ;     Descuenta Cont_Delay, refresca cada 100 ms (5000ticks) los valores de
@@ -591,10 +580,10 @@ P1:
                 movb DISP1,PORTB
 DT_BRILLO:
                 LDAA #5                                 ;Correccion de escala
-		ldab BRILLO
+                ldab BRILLO
                 mul
                 stab DT
-                
+
                 ldaa CONT_TICKS                 ; si el contador llega a ciclo, termina
                 cmpa DT
                 bne FIN_OC4
@@ -764,15 +753,15 @@ CONV_BIN_BCD:
                 Beq BIN1_BB
 
                 Cmpa #$AA
-		Beq BIN1_AA
+                Beq BIN1_AA
 
-		Bra BIN1_CALC
+                Bra BIN1_CALC
 
-BIN1_BB:	Movb #$BB,BCD1
-		Bra BIN2_CHECK
+BIN1_BB:        Movb #$BB,BCD1
+                Bra BIN2_CHECK
 
-BIN1_AA:	Movb #$AA,BCD1
-		Bra BIN2_CHECK
+BIN1_AA:        Movb #$AA,BCD1
+                Bra BIN2_CHECK
 
 
 BIN1_CALC:
@@ -944,11 +933,13 @@ end_formar:     movb #$FF,Tecla_IN
 ;     OUTPUTS: BIN1, BIN2
 ;------------------------------------------------------------------------------
 MODO_CONFIG:
-
+                BCLR Banderas,$80   ; borra bandera de competencia just in case
+    ;si no es ni modo competencia ni modo resumen, se limpian VELOC, VUELTAS, VELPROM y se deshabilitan interrupciones por TCNT y PTH
+    		clr VELOC
 		bclr TSCR2,$80
     		bclr PIEH,$09
-		ldx #CONFIG_MSG1 ;carga el mensaje de configuracion
-                ldy #CONFIG_MSG2
+		ldx #MSG_CONFIG1 ;carga el mensaje de configuracion
+                ldy #MSG_CONFIG2
                 jsr Cargar_LCD
                 movb #$02,LEDS ;carga el LED asociado al modo
                 movw #$0000,TICK_EN ;borra TICK_EN y TICK_DIS
@@ -991,8 +982,10 @@ VALIDO:
 ;------------------------------------------------------------------------------
 
 MODO_RESUM:
-                ldx #RESUM_MSG1 ;carga el mensaje resumen en la pantalla LCD
-                ldy #RESUM_MSG2
+                Bclr Banderas,$80    ;se actualiza el modo previo
+    		BCLR PIEH,$09        ;apaga los sensores
+		ldx #MSG_RESUMEN ;carga el mensaje resumen en la pantalla LCD
+                ldy #MSG_COMPE2
                 jsr Cargar_LCD
                 movb #$08,LEDS
                 movb VUELTAS,BIN2 ;carga los valores de VUELTAS y VELPROM en 7 segmentos
@@ -1021,22 +1014,22 @@ PANT_CTRL:
                 BSET Banderas,$10 ;si CALC_TICKS es 0, se realizan los calculos asociados y se pone en 1
 
 
-		LDY #55 ;Y tiene la cantidad de ticks que pasan en 55 m
-		LDD #100
-                EMUL ;D tiene la cantidad de ticks que pasan en 5500 m
-                LDX #55
-                IDIV ;X tiene la cantidad de ticks que pasan en 100 m
+		ldy #55 ;Y tiene la cantidad de ticks que pasan en 55 m
+		ldd #100
+                emul ;D tiene la cantidad de ticks que pasan en 5500 m
+                ldx #55
+                idiv ;X tiene la cantidad de ticks que pasan en 100 m
                 stx TICKS_TIME ;TICKS_TIME es la cantidad de ticks que pasan en 100 m
 
-		TFR x,d
+		tfr x,d
                 addd TICKS_TIME
                 std TICK_EN ;TICK_EN es el tiempo para recorrer 200 m, ya que la pantalla se halla a 300 m de S2
                 addd TICKS_TIME
                 std TICK_DIS ;TICK_DIS es el tiempo para recorrer 300 m, pasando la pantalla
-                MOVW #$0000,TICKS_TIME ;TICKS_TIME se limpia
-                RTS
-                
-                
+                movw #$0000,TICKS_TIME ;TICKS_TIME se limpia
+                rts
+
+
 INVALID_PANT:	ldaa BIN1 ;la velocidad es invalida, se revisa si BIN1 es $AA
                 cmpa #$AA
                 beq FIRST_CHECK_PANT ;si no es $AA, se debe cargar $AA para poner rayas en la pantalla
@@ -1045,8 +1038,8 @@ INVALID_PANT:	ldaa BIN1 ;la velocidad es invalida, se revisa si BIN1 es $AA
                 movb #$AA,BIN1 ;se ponen rayas en la pantalla de 7 segmentos
                 movb #$AA,BIN2
                 bset Banderas %00001000 ;se levanta PANT_FLG
-                ldx #ALERT_MSG1 ;se carga el mensaje de alerta
-                ldy #ALERT_MSG2
+                ldx #MSG_ALERTA1 ;se carga el mensaje de alerta
+                ldy #MSG_ALERTA2
                 jsr Cargar_LCD
                 rts
 
@@ -1061,21 +1054,18 @@ SECOND_CHECK_PANT:
                 CMPA #$BB
                 BNE BIN1_BB_INITIAL_MSG ;si A es $BB, se retorna
                 RTS
-                
+
 BIN1_BB_INITIAL_MSG:
-                ldx #RunMeter ;carga del mensaje inicial
-                ldy #Esperando
+                ldx #MSG_LIBRE1 ;carga del mensaje inicial
+                ldy #MSG_ESPERA
                 jsr Cargar_LCD
                 movb #$BB,BIN1 ;se apagan las pantallas de 7 segmentos
                 movb #$BB,BIN2
-                
+
                 ldab VUELTAS        ; se revisa si se lleg'o al maximo
                 cmpb NumVueltas
                 beq CLEAR_PANT_VARS
-
-
                 bset PIEH,$09
-                bra CLEAR_PANT_VARS
 
 CLEAR_PANT_VARS:
                 BCLR Banderas,$10 ;se limpian las variables de la pantalla
@@ -1089,27 +1079,46 @@ CHECK_BIN1_BB_COMP:
                 RTS
 
 BIN1_BB_COMP_MSG:
-                LDX #COMP_MSG1
-                LDY #COMP_MSG2
+                LDX #MSG_COMPE1
+                LDY #MSG_COMPE2
                 JSR Cargar_LCD
                 MOVB VUELTAS,BIN2
                 MOVB VELOC,BIN1
 FIN_PANT:
 	       RTS
-                
+
 ;------------------------------------------------------------------------------
 ;   Subrutina MODO_COMP: Esta subrutina corresponde a la operacion del modo competencia.
 ;      Pasa revisando el valor de VELOC para acceder a PANT_CTRL
 ;------------------------------------------------------------------------------
 MODO_COMP:
-                movb #$04,LEDS
+                brset Banderas,$80,ESTADO_COMPE
+                bset Banderas,$80 ;se actualiza el modo previo
+		ldx #MSG_LIBRE1   ;se carga el mensaje inicial
+		ldy #MSG_ESPERA
+		jsr Cargar_LCD
+		movb #$BB,BIN1
+		movb #$BB,BIN2
+		bset TSCR2,$80        ;se habilita TCNT
+		bset PIEH,$09   ;se habilita keywakeup en PH0 y PH3.
+		bclr Banderas,$04 ;en este caso solo es necesario borrar ARRAY_OK
+
+		clr ValorVueltas
+		clr VUELTAS
+		clr VELPROM
+		clr VELOC
+		clr Num_Array
+
+ESTADO_COMPE:
+		movb #$04,LEDS
                 brclr Banderas,$40,CHECK_VEL_COMP ;se revisa si se debe imprimir el mensaje calculando
                 bclr Banderas,$40
-                ldx #RunMeter ;se imprime el mensaje calculando
-                ldy #Calculando
+                ldx #MSG_LIBRE1 ;se imprime el mensaje calculando
+                ldy #MSG_CALCULANDO
                 jsr Cargar_LCD
+
 CHECK_VEL_COMP:
-                tst VELOC
+                tst VELOC         ;Entra a control de pantalla hasta que la velocidad no es 0
                 beq FIN_COMP
                 jsr PANT_CTRL
 
@@ -1129,13 +1138,12 @@ MODO_LIBRE:
                 brclr CRGINT,$80,NOT_FIRST_LIBRE
 		clr VELOC
     		clr VUELTAS
-      		;clr VELPROM
     		bclr TSCR2,$80
     		bclr PIEH %00001001
     		bclr Banderas,$80
-                ;BSET Banderas,$10 ;borraaar
-                ldx #RunMeter
-                ldy #LIBRE_MSG
+
+                ldx #MSG_LIBRE1
+                ldy #MSG_LIBRE2
                 jsr Cargar_LCD
                 bclr CRGINT,$80
                 bclr TIE,$10
@@ -1154,7 +1162,7 @@ NOT_FIRST_LIBRE:
 ;     los mensajes de las lineas 1 y 2 respectivamente.
 ;------------------------------------------------------------------------------
 Cargar_LCD:     ldaa ADD_L1                           ;inicio de linea
-                jsr Send_Command                ;env�a comando
+                jsr Send_Command                ;env?a comando
                 movb D40uS,Cont_Delay           ;delay
                 jsr Delay
 
