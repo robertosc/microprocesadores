@@ -120,7 +120,7 @@ MSG_LIBRE1:     fcc "  RunMeter 623  "
 MSG_LIBRE2:     fcc "   MODO LIBRE   "
                 db EOM
 
-MSG_COMPE1:            fcc "M.COMPETENCIA"
+MSG_COMPE1:            fcc " M.COMPETENCIA "
                 db EOM
 MSG_COMPE2:     fcc "VUELTA    VELOC"
                 db EOM
@@ -319,8 +319,9 @@ CONF_COMP:
 
 
 CALCULAR:
-                brset PIFH,$01,PH0_ISR          ; se revisa cual interrupcion es
-                brset PIFH,$08,PH3_ISR
+                brset PIFH,$08,PH3_ISR          ; se revisa cual interrupcion es
+		brset PIFH,$01,PH0_ISR
+                rti
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion PTH0: Subrutina de atencion a la interrupcion por key wakeup en PH0. Simula el segundo sensor
 ;      del velodromo y determina si la velocidad medida esta en el rango de velocidades valido, ademas de actualizar la velocidad promedio
@@ -356,7 +357,11 @@ PH0_ISR:
                 inc VUELTAS
                 ldaa VELOC    ; se recarga veloc porque se necesita en a
                 ldab VELPROM
-                sba
+                ;SBA
+                ADDA -VELPROM
+		tst VELPROM
+                bne prueba
+
 
                 tfr a,b
                 clra
@@ -368,6 +373,7 @@ PH0_ISR:
                 idiv ;queda en x
 
                 tfr x,d
+
                 addd VELPROM
                 stab VELPROM
 
@@ -379,6 +385,7 @@ VELOCID_INVALID:
 
 FIN_PH0:
                 rti
+prueba:         rti
 
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion PTH3: Subrutina de atencion a la interrupcion por key wakeup en PH3. Simula el primer sensor
@@ -409,7 +416,7 @@ FIN_PH3:
 
 TCNT_ISR:
                 bset TFLG2,$80 ;activa la interrupcion
-                
+
                 ldd TICK_EN ;Se ve si es 0 para cargar en pantalla
                 cpd #0
                 beq TICKEN_ZERO
@@ -940,7 +947,7 @@ end_formar:     movb #$FF,Tecla_IN
 MODO_CONFIG:
                 BCLR Banderas,$80   ; borra bandera de competencia just in case
     ;si no es ni modo competencia ni modo resumen, se limpian VELOC, VUELTAS, VELPROM y se deshabilitan interrupciones por TCNT y PTH
-    		clr VELOC
+            	clr VELOC
 		bclr TSCR2,$80
     		bclr PIEH,$09
 		ldx #MSG_CONFIG1 ;carga el mensaje de configuracion
@@ -1100,17 +1107,17 @@ MODO_COMP:
 		ldx #MSG_LIBRE1   ;se carga el mensaje inicial
 		ldy #MSG_ESPERA
 		jsr Cargar_LCD
+                bclr Banderas,$04 ;en este caso solo es necesario borrar ARRAY_OK
+                bset TSCR2,$80        ;se habilita TCNT
+		bset PIEH,$09   ;se habilita keywakeup en PH0 y PH3.
 		movb #$BB,BIN1
 		movb #$BB,BIN2
-		bset TSCR2,$80        ;se habilita TCNT
-		bset PIEH,$09   ;se habilita keywakeup en PH0 y PH3.
-		bclr Banderas,$04 ;en este caso solo es necesario borrar ARRAY_OK
-
 		clr ValorVueltas
+                clr VELOC
+		clr Num_Array
 		clr VUELTAS
 		clr VELPROM
-		clr VELOC
-		clr Num_Array
+
 
 ESTADO_COMPE:
 		movb #$04,LEDS
@@ -1139,10 +1146,10 @@ FIN_COMP:
 ;------------------------------------------------------------------------------
 MODO_LIBRE:
                 brclr CRGINT,$80,FIN_LIBRE ;Revisa si ya estuvo en libre
-		clr VELOC
-    		clr VUELTAS
+  		clr VELOC
+      		clr VUELTAS
     		bclr TSCR2,$80
-    		bclr PIEH %00001001
+      		bclr PIEH %00001001
     		bclr Banderas,$80
 
                 ldx #MSG_LIBRE1
