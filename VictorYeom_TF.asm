@@ -8,7 +8,7 @@
 ;   se desean medir, el modo libre para tener al sistema en un tipo de modo ocioso, el modo competencia que mide la velocidad y
 ;   la cantidad de vueltas realizadas por un ciclista y el modo resumen que le muestra al ciclista su rendimiento en forma de la
 ;   velocidad promedio en la cantidad de vueltas medida. Todo el intercambio de informacion con el ciclista ocurre por medio del
-;   despliegue de datos en la pantalla LCD y la pantalla de 7 segmentos, asï¿½ como el teclado matricial en el caso del modo config.
+;   despliegue de datos en la pantalla LCD y la pantalla de 7 segmentos, así como el teclado matricial en el caso del modo config.
 ;
 ;##############################################################################
 #include registers.inc
@@ -513,7 +513,7 @@ RESET_CONT_200:
                 MOVB #$87,ATD0CTL5
 FIN_RTI:
                 RTI
-;ok                
+                
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion por output compare en el canal 4:
 ;     Descuenta Cont_Delay, refresca cada 100 ms (5000ticks) los valores de
