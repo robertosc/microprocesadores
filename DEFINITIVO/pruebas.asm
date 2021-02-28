@@ -93,9 +93,6 @@ CLEAR_LCD:      db $01  ;comando para limpiar el LCD
 ADD_L1:         db $80  ;direccion inicio de linea 1
 ADD_L2:         db $C0  ;direccion inicio de linea 2
 
-BanderasEx:     DS 1    ;Banderas de uso adicionales. Tiene el formato: X:X:X:X:X:DISPLAY_CALC:CANT_VUELTAS_MAXIMA:X
-                        ;CANT_VUELTAS_MAXIMA indica cuando Vueltas se vuelve igual a NumVueltas
-                        ;DISPLAY_CALC es utilizado para mostrar el Mensaje Calculando en el momento apropiado
 TICKS_TIME:     DS 2  ;Variable WORD utilizada para medir la cantidad de ticks que deben pasar para recorrer 100 m
 SAVE_MED:       DS 2
                 ORG $1040
@@ -229,7 +226,6 @@ BORRAR_ARRAY:
     CLR VELOC
     CLR VELPROM
     CLR Banderas
-    CLR BanderasEx
     CLR Cont_Reb
     CLR Cont_TCL
     MOVW #$0000,TICKS_TIME
@@ -249,7 +245,7 @@ CONFIG_ATD:
     DBNE A,CONFIG_ATD ;3 ciclos del reloj * 160 * (1/48MHz) = 10 us. Tiempo de inicio del ATD
 
 ;Conf LCD
-                    ldx #iniDsp
+                ldx #iniDsp
                 inx
                 clrb
 
@@ -269,35 +265,33 @@ INITIALIZE_LCD:
 
 ;------------------------------------------------------------------------------
 MAIN:
-
-;Entra a la primera configuracion
 FIRST_CONFIG:
-                movb #$BB,BIN2   	;apaga pantallas 7seg
-		movb #$BB,BIN1
-		jsr MODO_CONFIG ;Se mantiene hasta que se ingrese un numero de vueltas
-		tst NumVueltas
-		beq FIRST_CONFIG
+                movb #$BB,BIN2           ;apaga pantallas 7seg
+                movb #$BB,BIN1
+                jsr MODO_CONFIG ;Se mantiene hasta que se ingrese un numero de vueltas
+                tst NumVueltas
+                beq FIRST_CONFIG
                 bra DIP_SWITCH
 
 
-GO_LIBRE:
-		jsr MODO_LIBRE
-		bra DIP_SWITCH
+LLAMAR_LIBRE:
+                jsr MODO_LIBRE
+                bra DIP_SWITCH
 
 
-GO_COMP:
-		jsr MODO_COMP     ;se ejecuta el modo competicion
-		bra DIP_SWITCH  ;se vuelve a leer el modo de operacion
+LLAMAR_COMPE:
+                jsr MODO_COMP     ;se ejecuta el modo competicion
+                bra DIP_SWITCH  ;se vuelve a leer el modo de operacion
 
 
-GO_RESUM:
-		jsr MODO_RESUM       ;se ejecuta el modo resumen
-		bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
+LLAMAR_RESUMEN:
+                jsr MODO_RESUM       ;se ejecuta el modo resumen
+                bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
 
 
-GO_CONF:
-		jsr MODO_CONFIG      ;se ejecuta el modo config
-		bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
+LLAMAR_CONFIF:
+                jsr MODO_CONFIG      ;se ejecuta el modo config
+                bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
 
 
 
@@ -307,16 +301,16 @@ GO_CONF:
 ;------------------------------------------------------------------------------
 
 DIP_SWITCH:
-    brclr PTIH,#$C0,GO_LIBRE
-    brset CRGINT,$80,CONTINUE_CHECK
-    bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
-    bset CRGINT,$80 ;se habilitan las interrupciones RTI
+                brclr PTIH,#$C0,LLAMAR_LIBRE
+                brset CRGINT,$80,CONTINUE_CHECK
+                bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
+                bset CRGINT,$80 ;se habilitan las interrupciones RTI
 CONTINUE_CHECK:
-    brset PTIH,#$40,CONF_COMP
-    bra GO_RESUM
+                brset PTIH,#$40,CONF_COMP
+                bra LLAMAR_RESUMEN
 CONF_COMP:
-    brclr PTIH,#$80,GO_CONF
-    bra GO_COMP
+                brclr PTIH,#$80,LLAMAR_CONFIF
+                bra LLAMAR_COMPE
     
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion PTH CALCULAR: Subrutina utilizada para la lectura de los sensores y subsecuentes
@@ -347,37 +341,40 @@ PH0_ISR:
 
                 movw TICK_MED,SAVE_MED
 
-                cpx #129 ;259 ticks para 35 km/h
-                bhi VEL_INVAL ;si es mayor a esto, la velocidad es menor a 35 km/h
-                cpx #48 ;95 ticks para 95 km/h
-                blo VEL_INVAL ;si es menor a esto, la velocidad es mayor a 95 km/h
+                cpx #129 ;129 ticks para 35 km/h
+                bhi VELOCID_INVALID ;si es mayor a esto, la velocidad es menor a 35 km/h
+                cpx #48 ;48 ticks para 95 km/h
+                blo VELOCID_INVALID ;si es menor a esto, la velocidad es mayor a 95 km/h
 
 
+                stx TICKS_TIME ;se guarda la cantidad de ticks necesarios para recorrer 55 m
+                ldd #4532 ;D = 4532
+                idiv ;X = (D/X) = 4532/TICKS = VELOC
+                tfr X,D ;D = VELOC
+                stab VELOC ;la velocidad siempre es menor a 1 byte, por lo que se guarda en VELOC
 
-                ;BSET BanderasEx,$01 ;se levanta la bandera de velocidad valida
-                STX TICKS_TIME ;se guarda la cantidad de ticks necesarios para recorrer 55 m
-                LDD #4532 ;D = 4532
-                IDIV ;X = (D/X) = 4532/TICKS = VELOC
-                TFR X,D ;D = VELOC
-                STAB VELOC ;la velocidad siempre es menor a 1 byte, por lo que se guarda en VELOC
-                LDAA VELPROM ;se carga la velocidad promedio en A
-                LDAB VUELTAS ;se carga la cantidad de vueltas-1 en B
-                MUL ;D = VELPROM*(VUELTAS-1)
-                TFR D,X ;X = VELPROM*(VUELTAS-1)
-                LDAB VELOC ;B = VELOC
-                ABX ;X = VELPROM*(VUELTAS-1) + VELOC
-                INC VUELTAS ;se actualiza el valor de VUELTAS
-                LDAB VUELTAS
-                CLRA ;D = VUELTAS
-                XGDX ;D = VELPROM*(VUELTAS-1) + VELOC, X = VUELTAS
-                IDIV ;X = (D/X) = VELPROM
-                TFR X,D ;D = VELPROM
-                STAB VELPROM ;se actualiza la velocidad promedio
+                inc VUELTAS
+                ldaa VELOC    ; se recarga veloc porque se necesita en a
+                ldab VELPROM
+                sba
+
+                tfr a,b
+                clra
+                tfr d,y
+                ldab VUELTAS
+                tfr d,x
+                tfr y,d
+
+                idiv ;queda en x
+
+                tfr x,d
+                addd VELPROM
+                stab VELPROM
+
                 BRA FIN_PH0
 
-VEL_INVAL:
-                movb #$FF,VELOC ;la velocidad medida es invalida, por lo que se desactiva la bandera de velocidad valida
-                bclr BanderasEx,$01
+VELOCID_INVALID:
+                bset VELOC,$FF ;la velocidad medida es invalida, por lo que se desactiva la bandera de velocidad valida
                 bra FIN_PH0
 
 FIN_PH0:
@@ -392,14 +389,14 @@ FIN_PH0:
 PH3_ISR:
                 bset PIFH,$08
                 tst Cont_Reb
-                bne END_PH3
+                bne FIN_PH3
                 clr SAVE_MED
                 BSET Banderas,$40 ;se levanta DISPLAY_CALC
-                MOVB #100,Cont_Reb
-                MOVW #$0000,TICK_MED ;se borra TICK_MED
+                movb #100,Cont_Reb
+                movw #$0000,TICK_MED ;se borra TICK_MED
 
-END_PH3:
-                RTI
+FIN_PH3:
+                rti
 
 
 
@@ -411,43 +408,48 @@ END_PH3:
 ;------------------------------------------------------------------------------
 
 TCNT_ISR:
-                BSET TFLG2,$80 ;se limpia la bandera de interrupcion
-                LDX TICK_MED ;se carga TICK_MED y se compara si llego a $FFFF, para evitar overflow
-                CPX #$FFFF
-                BEQ CHECK_EN_TCNT
-                INX ;si no es $FFFF, se incrementa y se guarda el valor
-                STX TICK_MED
+                bset TFLG2,$80 ;activa la interrupcion
+                
+                ldd TICK_EN ;Se ve si es 0 para cargar en pantalla
+                cpd #0
+                beq TICKEN_ZERO
+                cpd #$FFFF ;Termina
+                beq TICKMED_FULL
+                subd #1 ;si no se cumple ninguna las dos condiciones revisadas, se decrementa y guarda el valor
+                std TICK_EN
+                bra TICKMED_FULL
 
-CHECK_EN_TCNT:
-                LDX TICK_EN ;se carga TICK_EN y se ve si es 0. Si fuera 0, se debe levantar PANT_FLG
-                CPX #0
-                BEQ EN_IS_0_TCNT
-                CPX #$FFFF ;se ve si es $FFFF, lo cual significa que ya se llego a 0 y no se ha cargado un nuevo valor
-                BEQ CHECK_DIS_TCNT
-                DEX ;si no se cumple ninguna las dos condiciones revisadas, se decrementa y guarda el valor
-                STX TICK_EN
-                BRA CHECK_DIS_TCNT
+TICKEN_ZERO:
+                bset Banderas,$08 ;se levanta PANT_FLG
+                ldy TICK_EN
+                bset TICK_EN,$FF
+                bset 1,Y,$FF
+                
+TICKMED_FULL:
+                ldd TICK_MED ;Si llega a FF se reinicia a 0
+                cpd #$FFFF
+                beq TICKDIS_REV
+                addd #1 ;si no es $FFFF, se incrementa y se guarda el valor
+                std TICK_MED
 
-EN_IS_0_TCNT:
-                MOVW #$FFFF,TICK_EN
-                BSET Banderas,$08 ;se levanta PANT_FLG
+TICKDIS_REV:
+                ldd TICK_DIS ;se carga TICK_DIS y se ve si es 0. Si fuera 0, se debe desactivar PANT_FLG
+                cpd #0       ; no se puede usar tst, es un word
+                beq TICKDIS_ZERO
+                cpd #$FFFF ;se ve si es $FFFF, lo cual significa que ya se llego a 0 y no se ha cargado un nuevo valor
+                beq FIN_TCNT
+                subd #1 ;si no se cumple ninguna las dos condiciones revisadas, se decrementa y guarda el valor
+                std TICK_DIS
+                bra FIN_TCNT
 
-CHECK_DIS_TCNT:
-                LDX TICK_DIS ;se carga TICK_DIS y se ve si es 0. Si fuera 0, se debe desactivar PANT_FLG
-                CPX #0
-                BEQ DIS_IS_0_TCNT
-                CPX #$FFFF ;se ve si es $FFFF, lo cual significa que ya se llego a 0 y no se ha cargado un nuevo valor
-                BEQ FIN_TCNT
-                DEX ;si no se cumple ninguna las dos condiciones revisadas, se decrementa y guarda el valor
-                STX TICK_DIS
-                BRA FIN_TCNT
-
-DIS_IS_0_TCNT:
-                MOVW #$FFFF,TICK_DIS
-                BCLR Banderas,$08 ;se desactiva PANT_FLG
+TICKDIS_ZERO:
+                bclr Banderas,$08 ;se desactiva PANT_FLG
+                ldy TICK_DIS
+                bset TICK_DIS,$FF
+                bset 1,Y,$FF
 
 FIN_TCNT:
-                RTI
+                rti
 
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion ATD0: Subrutina utilizada para la conversion analogica digital del potenciometro
@@ -458,13 +460,13 @@ FIN_TCNT:
 ;------------------------------------------------------------------------------
 
 ATD_ISR:
-                ldx #6
-                ldd ADR00H   ;Se calcula el promedio de las 6 medidas del potenciometro
+                ldd ADR00H   ;Se hace en d para sumar words
                 addd ADR01H
                 addd ADR02H
                 addd ADR03H
                 addd ADR04H
                 addd ADR05H
+                ldx #6
                 idiv
                 tfr X,D
                 stab POT ;Guardar el promedio
@@ -501,10 +503,12 @@ TIMER:          tst CONT_200
                 Bra FIN_RTI
 
 
-NO_RESET:           dec CONT_200                          ;Decrementamos el contador de rebotes si aun no ha llegado a cero
+NO_RESET:
+                dec CONT_200                          ;Decrementamos el contador de rebotes si aun no ha llegado a cero
 
 
-FIN_RTI:        Rti
+FIN_RTI:
+                Rti
 
 ;------------------------------------------------------------------------------
 ;   Subrutina de servicio a interrupcion por output compare en el canal 4:
@@ -578,6 +582,7 @@ P2:
 P1:
                 movb #$FE,PTP                         ;se habilita display 1
                 movb DISP1,PORTB
+
 DT_BRILLO:
                 LDAA #5                                 ;Correccion de escala
                 ldab BRILLO
@@ -715,7 +720,7 @@ lazo:
                 Blo men031  ;Si es menor, salte a men031
                 Adda #3  ;En caso de mayor, sume 3
 
-men031
+men031:
                 Staa LOW  ;Guardamos temporalmente el resultado anterior
 
                 Ldaa BCD_L
@@ -724,7 +729,7 @@ men031
                 Blo men301
                 Adda #$30   ;Si es mayor, sume 30
 
-men301
+men301:
                 Adda LOW   ;Se suman los bits para obtener los 4 LSB de resultado
                 Staa BCD_L  ;Se guarda el resultado
                 Pula
@@ -771,24 +776,24 @@ BIN1_CALC:
                 Bhs mayor1
                 Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
 
-mayor1          Staa BCD1 ;Guardamos el valor en BCD1
+mayor1:         Staa BCD1 ;Guardamos el valor en BCD1
 
 
-BIN2_CHECK:	Ldaa BIN2
+BIN2_CHECK:        Ldaa BIN2
 
-		Cmpa #$BB
-		Beq BIN2_BB
+                Cmpa #$BB
+                Beq BIN2_BB
 
-		Cmpa #$AA
-		Beq BIN2_AA
+                Cmpa #$AA
+                Beq BIN2_AA
 
-		Bra BIN2_CALC
+                Bra BIN2_CALC
 
-BIN2_BB:	Movb #$BB,BCD2
-		Bra FIN_CONV
+BIN2_BB:        Movb #$BB,BCD2
+                Bra FIN_CONV
 
-BIN2_AA:	Movb #$AA,BCD2
-		Bra FIN_CONV
+BIN2_AA:        Movb #$AA,BCD2
+                Bra FIN_CONV
 
 
 BIN2_CALC:
@@ -798,10 +803,10 @@ BIN2_CALC:
                 Bhs mayor2
                 Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
 
-mayor2          Staa BCD2 ;Guardamos el valor en BCD1
+mayor2:          Staa BCD2 ;Guardamos el valor en BCD1
 
 
-FIN_CONV:	Rts
+FIN_CONV:        Rts
 
 ;------------------------------------------------------------------------------
 ; Subrutina TAREA_TECLADO: En esta subrutina se da la lectura del teclado. Aqui
@@ -982,8 +987,8 @@ VALIDO:
 ;------------------------------------------------------------------------------
 
 MODO_RESUM:
-                Bclr Banderas,$80    ;se actualiza el modo previo
-    		BCLR PIEH,$09        ;apaga los sensores
+                bclr Banderas,$80    ;se actualiza el modo previo
+    		bclr PIEH,$09        ;apaga los sensores
 		ldx #MSG_RESUMEN ;carga el mensaje resumen en la pantalla LCD
                 ldy #MSG_COMPE2
                 jsr Cargar_LCD
@@ -1044,19 +1049,9 @@ INVALID_PANT:	ldaa BIN1 ;la velocidad es invalida, se revisa si BIN1 es $AA
                 rts
 
 FIRST_CHECK_PANT:
-                BRCLR Banderas,$08,BIN1_BB_INITIAL_MSG ;BIN1 es $AA, se revisa PANT_FLG
-                RTS
+                brset Banderas,$08,FIN_PANT ;BIN1 es $AA, se revisa PANT_FLG
 
-
-SECOND_CHECK_PANT:
-                BRSET Banderas,$08,CHECK_BIN1_BB_COMP ;CALC_TICKS era 1, se hacen las revisiones de $BB segun PANT_FLG
-                LDAA BIN1 ;PANT_FLG es 0
-                CMPA #$BB
-                BNE BIN1_BB_INITIAL_MSG ;si A es $BB, se retorna
-                RTS
-
-BIN1_BB_INITIAL_MSG:
-                ldx #MSG_LIBRE1 ;carga del mensaje inicial
+		ldx #MSG_LIBRE1 ;carga del mensaje inicial
                 ldy #MSG_ESPERA
                 jsr Cargar_LCD
                 movb #$BB,BIN1 ;se apagan las pantallas de 7 segmentos
@@ -1065,12 +1060,20 @@ BIN1_BB_INITIAL_MSG:
                 ldab VUELTAS        ; se revisa si se lleg'o al maximo
                 cmpb NumVueltas
                 beq CLEAR_PANT_VARS
-                bset PIEH,$09
+                bset PIEH,$09       ; deshabilida interrupciones por puertos ph3 y ph0
 
 CLEAR_PANT_VARS:
                 BCLR Banderas,$10 ;se limpian las variables de la pantalla
                 CLR VELOC
                 RTS
+
+SECOND_CHECK_PANT:
+                BRSET Banderas,$08,CHECK_BIN1_BB_COMP ;CALC_TICKS era 1, se hacen las revisiones de $BB segun PANT_FLG
+                LDAA BIN1 ;PANT_FLG es 0
+                CMPA #$BB
+                BNE FIRST_CHECK_PANT ;si A es $BB, se retorna
+                RTS
+
 
 CHECK_BIN1_BB_COMP:
                 LDAA BIN1
@@ -1111,13 +1114,13 @@ MODO_COMP:
 
 ESTADO_COMPE:
 		movb #$04,LEDS
-                brclr Banderas,$40,CHECK_VEL_COMP ;se revisa si se debe imprimir el mensaje calculando
+                brclr Banderas,$40,VEL_ZERO ;se revisa si se debe imprimir el mensaje calculando
                 bclr Banderas,$40
                 ldx #MSG_LIBRE1 ;se imprime el mensaje calculando
                 ldy #MSG_CALCULANDO
                 jsr Cargar_LCD
 
-CHECK_VEL_COMP:
+VEL_ZERO:
                 tst VELOC         ;Entra a control de pantalla hasta que la velocidad no es 0
                 beq FIN_COMP
                 jsr PANT_CTRL
@@ -1135,7 +1138,7 @@ FIN_COMP:
 ;      deshabilitado.
 ;------------------------------------------------------------------------------
 MODO_LIBRE:
-                brclr CRGINT,$80,NOT_FIRST_LIBRE
+                brclr CRGINT,$80,FIN_LIBRE ;Revisa si ya estuvo en libre
 		clr VELOC
     		clr VUELTAS
     		bclr TSCR2,$80
@@ -1150,7 +1153,7 @@ MODO_LIBRE:
                 movb #$FF,PTP
                 movb #$00,PTJ ;se habilitan los LEDS
                 movb #$01,PORTB ;se coloca en puerto B el estado de los LEDS.
-NOT_FIRST_LIBRE:
+FIN_LIBRE:
                 rts
 
 
