@@ -1032,22 +1032,21 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         ;------------------------------------------------------------------------------
 221f                    CONV_BIN_BCD:
 221f b6 10 12                           Ldaa BIN1
-2222 16 21 ed                           Jsr BIN_BCD
+2222 16 21 ed                           Jsr BIN_BCD ;Pasamos BIN1 a BCD
 2225 b6 10 14                           Ldaa BCD_L
 2228 81 0a                              Cmpa #10
 222a 24 02                              Bhs mayor1
-222c 8b b0                              Adda #$B0
+222c 8b b0                              Adda #$B0 ;Si solo tiene un digito, agrega B como "decenas"
                         
-222e 7a 10 17           mayor1          Staa BCD1
-                        
+222e 7a 10 17           mayor1          Staa BCD1 ;Guardamos el valor en BCD1
 2231 b6 10 13                           Ldaa BIN2
-2234 16 21 ed                           Jsr BIN_BCD
+2234 16 21 ed                           Jsr BIN_BCD ;Pasamos BIN2 a BCD
 2237 b6 10 14                           Ldaa BCD_L
 223a 81 0a                              Cmpa #10
 223c 24 02                              Bhs mayor2
-223e 8b b0                              Adda #$B0
+223e 8b b0                              Adda #$B0 ;Si es de un solo digito, agrega B en decenas
                         
-2240 7a 10 18           mayor2          Staa BCD2
+2240 7a 10 18           mayor2          Staa BCD2 ;Guardamos en BCD2
 2243 3d                                 Rts
                         
                         
@@ -1195,9 +1194,9 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2366                    MODO_RUN:
 2366 f7 10 0c                           Tst TIMER_CUENTA         ;si timer cuenta es cero
 2369 26 26                              Bne Fin_Run                 ;si no lo es, se retorna
-                                        
+                        
                                         ;Caso en que timer cuenta es cero
-                                        
+                        
 236b 18 0c 10 16 10 0c                  Movb VMAX,TIMER_CUENTA ;se recarga con vmax
 2371 72 10 09                           Inc CUENTA                 ;incrementamos cuenta
 2374 b6 10 09                           Ldaa CUENTA ;
@@ -1441,6 +1440,6 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2585 5c 58                              std TC4                         ;actualiza el nuevo valor a alcanzar.
 2587 0b                                 rti
 
-Executed: Sun Feb 14 13:36:32 2021
+Executed: Sun Feb 14 22:30:25 2021
 Total cycles: 1589, Total bytes: 1509
 Total errors: 0, Total warnings: 0
