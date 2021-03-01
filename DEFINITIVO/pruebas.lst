@@ -2,16 +2,15 @@
 as12, an absolute assembler for Motorola MCU's, version 1.2h
 
                         ;##############################################################################
-                        ;                          Proyecto Final: Runmeter623
-                        ;   Fecha: 30 de noviembre del 2020.
-                        ;   Autor: Victor Yeom Song
+                        ;                            Proyecto Final: Runmeter623
+                        ;   Fecha: 01/03/2020
+                        ;   Autores: Roberto S�nchez Y Guillermo Ram�rez
                         ;
-                        ;   Descripcion: El siguiente codigo para la tarjeta de entrenamiento dragon12 corresponde a un sistema de medicion de velocidad
-                        ;   y despliegue de informacion en un velodromo. Cuenta con 4 modos; el modo config para configurar la cantidad de vueltas que
-                        ;   se desean medir, el modo libre para tener al sistema en un tipo de modo ocioso, el modo competencia que mide la velocidad y
-                        ;   la cantidad de vueltas realizadas por un ciclista y el modo resumen que le muestra al ciclista su rendimiento en forma de la
-                        ;   velocidad promedio en la cantidad de vueltas medida. Todo el intercambio de informacion con el ciclista ocurre por medio del
-                        ;   despliegue de datos en la pantalla LCD y la pantalla de 7 segmentos, as? como el teclado matricial en el caso del modo config.
+                        ;   Este programa tiene como fin simular un dispositivo capaz de medir la velocidad
+                        ;   a la cual se mueve un ciclista por una pista. Para ello se utilizan las inte-
+                        ;   rrupciones PH� y PJ0 para simular los botones y se tienen insterrupciones para
+                        ;   llevar los tiempos. Adem�s posee 4 modos accesables por medio de las configuraciones
+                        ;   en los dipswitch ph7 y ph6.
                         ;
                         ;##############################################################################
                         #include registers.inc
@@ -720,7 +719,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 1029                    Cont_Delay:     ds 1
 102a 64                 D2ms:           db 100  ;2 milisegundos
-102b 0c                 D260us:         db 12  ;modificar    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+102b 0c                 D240us:         db 12   ;240us
 102c 02                 D40us:          db 2  ;40 microsegundos
 102d 01                 CLEAR_LCD:      db $01  ;comando para limpiar el LCD
 102e 80                 ADD_L1:         db $80  ;direccion inicio de linea 1
@@ -803,108 +802,103 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
      45 4e 20 20
 1127 00                                 db EOM
                         
+                        ;===============================================================================
+                        ;                            Configuracion del hardware
+                        ;===============================================================================
                         
-                        ;*******************************************************************************
-                        ;                             Programa principal
-                        ;*******************************************************************************
-                        ;------------------------------------------------------------------------------
-                        ;                          Configuracion del hardware
-                        ;------------------------------------------------------------------------------
-2000                    		org $2000
-2000 10 ef              		cli        ;habilita interrupciones mascarables
-2002 cf 3b ff           		lds #$3BFF  ;inicializa el stack
+2000                                    org $2000
+2000 10 ef                              cli        ;habilita interrupciones mascarables
+2002 cf 3b ff                           lds #$3BFF  ;inicializa el stack
                         
                         ;DIPSWITCH PH7 Y PH6
-2005 1d 02 62 c0        		bclr DDRH,$C0
+2005 1d 02 62 c0                        bclr DDRH,$C0
                         
                         ;Configuracion RTI:
-2009 4c 38 80           		bset CRGINT $80             ;Habilita RTI
-200c 18 0b 17 00 3b     		movb #$17,RTICTL            ;periodo 1.024ms
+2009 4c 38 80                           bset CRGINT $80             ;Habilita RTI
+200c 18 0b 17 00 3b                     movb #$17,RTICTL            ;periodo 1.024ms
                         
                         ;Keywakeup en puerto H:
-2011 1d 02 66 0f        		bclr PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
-2015 18 0b 00 02 65     		movb #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
+2011 1d 02 66 0f                        bclr PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
+2015 18 0b 00 02 65                     movb #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
                         
                         
                         ;Output Compare en Canal 4:
-201a 4c 40 10           		bset TIOS $10 ;Habilida canal 4
-201d 4c 4c 10           		bset TIE $10 ;Interrup en canal 4
-2020 4d 48 03           		bclr TCTL1 $03
-2023 4c 46 80           		bset TSCR1 $80 ;Habilita temporizacion
-2026 4c 4d 04           		bset TSCR2 $04 ;Preescalador magnitud 16
+201a 4c 40 10                           bset TIOS $10 ;Habilida canal 4
+201d 4c 4c 10                           bset TIE $10 ;Interrup en canal 4
+2020 4d 48 03                           bclr TCTL1 $03
+2023 4c 46 80                           bset TSCR1 $80 ;Habilita temporizacion
+2026 4c 4d 04                           bset TSCR2 $04 ;Preescalador magnitud 16
                         
                         ;Pantalla 7 segmentos y leds
-2029 18 0b 0f 02 5a     		movb #$0F,DDRP ;habilita pantallas de 7 segmentos
-202e 18 0b ff 00 03     		movb #$FF,DDRB ;configura b como salidas
-2033 1c 02 6a 02        		bset DDRJ,$02 ;salidas en los leds
+2029 18 0b 0f 02 5a                     movb #$0F,DDRP ;habilita pantallas de 7 segmentos
+202e 18 0b ff 00 03                     movb #$FF,DDRB ;configura b como salidas
+2033 1c 02 6a 02                        bset DDRJ,$02 ;salidas en los leds
                         
                         ;LCD
-2037 18 0b ff 00 33     		movb #$FF,DDRK ;Control de LCD
+2037 18 0b ff 00 33                     movb #$FF,DDRK ;Control de LCD
                         
                         ;Configuracion del ATD
-203c 18 0b 30 00 83     		movb #$30,ATD0CTL3
-2041 18 0b b3 00 84     		movb #$B3,ATD0CTL4
-2046 18 0b 87 00 85     		movb #$87,ATD0CTL5
+203c 18 0b 30 00 83                     movb #$30,ATD0CTL3
+2041 18 0b b3 00 84                     movb #$B3,ATD0CTL4
+2046 18 0b 87 00 85                     movb #$87,ATD0CTL5
                         
                         ;Teclado puerto A:
-204b 18 0b f0 00 02     		movb #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
-2050 4c 0c 01           		bset PUCR $01       ;resistencias de pullup para el teclado
+204b 18 0b f0 00 02                     movb #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
+2050 4c 0c 01                           bset PUCR $01       ;resistencias de pullup para el teclado
                         
                         
-                        ;------------------------------------------------------------------------------
+                        ;===============================================================================
                         ;                       Inicializacion de variables
-                        ;------------------------------------------------------------------------------
-                        ;Variables del teclado matricial
-2053 18 0b ff 10 04     		movb #$FF,Tecla
-2058 18 0b ff 10 05     		movb #$FF,Tecla_IN
-205d 18 0b ff 10 09     		movb #$FF,Num_Array
-2062 79 10 06           		clr Cont_Reb
-2065 79 10 07           		clr Cont_TCL
-2068 79 10 08           		clr Patron
-206b b6 10 03           		ldaa MAX_TCL
-206e ce 10 08           		ldx #NUM_ARRAY-1
+                        ;===============================================================================
+                        
+                        ;Variables teclado matricial
+2053 18 0b ff 10 04                     movb #$FF,Tecla
+2058 18 0b ff 10 05                     movb #$FF,Tecla_IN
+205d 18 0b ff 10 09                     movb #$FF,Num_Array
+2062 79 10 06                           clr Cont_Reb
+2065 79 10 07                           clr Cont_TCL
+2068 79 10 08                           clr Patron
+206b b6 10 03                           ldaa MAX_TCL
+206e ce 10 08                           ldx #NUM_ARRAY-1
                         
 2071                    BORRAR_ARRAY:                   
-2071 18 08 e4 ff        		movb #$FF,A,X
-2075 04 30 f9           		dbne A,BORRAR_ARRAY         ;borra variables respectivas al teclado
+2071 18 08 e4 ff                        movb #$FF,A,X
+2075 04 30 f9                           dbne A,BORRAR_ARRAY         ;borra variables respectivas al teclado
                         
+2078 18 0c 10 50 10 20                  movb SEGMENT,DISP3 ;
+207e 18 0c 10 50 10 21                  movb SEGMENT,DISP4 ;
+2084 18 0b 00 10 0b                     movb #0,BRILLO
+2089 18 0b 02 10 22                     movb #$02,LEDS
+208e 79 10 26                           clr CONT_7SEG
+2091 79 10 24                           clr CONT_TICKS
+2094 79 10 23                           clr CONT_DIG
+2097 79 10 18                           clr BCD1
+209a 79 10 19                           clr BCD2
                         
-                        ;Displays de 7 segmentos y LEDS:
-2078 18 0c 10 50 10 20  		movb SEGMENT,DISP3 ;
-207e 18 0c 10 50 10 21  		movb SEGMENT,DISP4 ;
-2084 18 0b 00 10 0b     		movb #0,BRILLO
-2089 18 0b 02 10 22     		movb #$02,LEDS
-208e 79 10 26           		clr CONT_7SEG
-2091 79 10 24           		clr CONT_TICKS
-2094 79 10 23           		clr CONT_DIG
-2097 79 10 18           		clr BCD1
-209a 79 10 19           		clr BCD2
+209d 18 03 00 00 10 30                  movw #$0000,TICKS_TIME
+20a3 18 03 00 00 10 0d                  movw #$0000,TICK_EN
+20a9 18 03 00 00 10 0f                  movw #$0000,TICK_DIS
+20af 79 10 00                           clr Banderas
+20b2 79 10 01                           clr NumVueltas
+20b5 79 10 12                           clr VUELTAS
+20b8 79 10 02                           clr ValorVueltas
+20bb 79 10 13                           clr VELPROM
+20be 79 10 11                           clr VELOC
+20c1 79 10 06                           clr Cont_Reb
+20c4 79 10 07                           clr Cont_TCL
                         
-                        ;Programa:
-209d 18 03 00 00 10 30  		movw #$0000,TICKS_TIME
-20a3 18 03 00 00 10 0d  		movw #$0000,TICK_EN
-20a9 18 03 00 00 10 0f  		movw #$0000,TICK_DIS
-20af 79 10 00           		clr Banderas
-20b2 79 10 01           		clr NumVueltas
-20b5 79 10 12           		clr VUELTAS
-20b8 79 10 02           		clr ValorVueltas
-20bb 79 10 13           		clr VELPROM
-20be 79 10 11           		clr VELOC
-20c1 79 10 06           		clr Cont_Reb
-20c4 79 10 07           		clr Cont_TCL
-                        
-20c7 4c 4c 10           		bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
-20ca 4c 46 80           		bset TSCR1,$80 ;se habilita el modulo de timer
-20cd 4c 38 80           		bset CRGINT,$80 ;se habilitan las interrupciones RTI
-20d0 18 0b c2 00 82     		movb #$C2,ATD0CTL2
+20c7 4c 4c 10                           bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
+20ca 4c 46 80                           bset TSCR1,$80 ;se habilita el modulo de timer
+20cd 4c 38 80                           bset CRGINT,$80 ;se habilitan las interrupciones RTI
+20d0 18 0b c2 00 82                     movb #$C2,ATD0CTL2
                             
-20d5 dc 44              		ldd TCNT
-20d7 c3 00 1e           		addd #30    ; ticks para el prescalador elegido
-20da 5c 58              		std TC4 ;se carga el valor inicial para interrupcion de OC4
+20d5 dc 44                              ldd TCNT
+20d7 c3 00 1e                           addd #30    ; ticks para el prescalador elegido
+20da 5c 58                              std TC4 ;se carga el valor inicial para interrupcion de OC4
                             ;se habilitan las interrupciones por ATD0
-20dc 86 a0              		ldaa #160
+20dc 86 a0                              ldaa #160
 20de                    CONFIG_ATD:
-20de 04 30 fd               		dbne A,CONFIG_ATD ;3;tiempo de inicio del ATD (10us)
+20de 04 30 fd                               dbne A,CONFIG_ATD ;3;tiempo de inicio del ATD (10us)
                         
                         ;Conf LCD
 20e1 ce 10 60                           ldx #iniDsp
@@ -925,7 +919,10 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2106 16 23 a1                           jsr Delay
                         
                         
-                        ;------------------------------------------------------------------------------
+                        ;===============================================================================
+                        ;===============================================================================
+                        ;===============================================================================
+                        
 2109                    MAIN:
 2109                    FIRST_CONFIG:
 2109 18 0b bb 10 17                     movb #$BB,BIN2           ;apaga pantallas 7seg
@@ -938,18 +935,18 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 211d                    LLAMAR_LIBRE:
 211d 1d 02 66 09                        bclr PIEH,%00001001
-2121 16 26 ee                           jsr MODO_LIBRE
+2121 16 26 ed                           jsr MODO_LIBRE
 2124 20 17                              bra DIP_SWITCH
                         
                         
 2126                    LLAMAR_COMPE:
-2126 16 26 95                           jsr MODO_COMP     ;se ejecuta el modo competicion
+2126 16 26 94                           jsr MODO_COMPETENCIA     ;se ejecuta el modo competicion
 2129 20 12                              bra DIP_SWITCH  ;se vuelve a leer el modo de operacion
                         
                         
 212b                    LLAMAR_RESUMEN:
 212b 1d 02 66 09                        bclr PIEH,%00001001
-212f 16 25 af                           jsr MODO_RESUM       ;se ejecuta el modo resumen
+212f 16 25 af                           jsr MODO_RESUMEN       ;se ejecuta el modo resumen
 2132 20 09                              bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
                         
                         
@@ -1163,7 +1160,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2291 26 0c                              bne CONTADOR_DISP               ; Si llega a 0, se le suman 5000 y volvemos a hacer conversiones
 2293 18 03 13 88 10 26                  movw #5000,CONT_7SEG
 2299 16 23 fd                           jsr CONV_BIN_BCD
-229c 16 27 69                           jsr BCD_7SEG
+229c 16 27 68                           jsr BCD_7SEG
                         
 229f                    CONTADOR_DISP:
 229f b6 10 24                           ldaa CONT_TICKS                 ; revisamos contador de ticks
@@ -1243,7 +1240,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2346 5a 32                              staa PORTK              ;guarda a en portk
 2348 4d 32 01                           bclr PORTK,$01          ;modif bits menos significativos
 234b 4c 32 02                           bset PORTK,$02
-234e 18 0c 10 2b 10 29                  movb D260uS,Cont_Delay  ;delay
+234e 18 0c 10 2b 10 29                  movb D240us,Cont_Delay  ;delay
 2354 16 23 a1                           jsr Delay
 2357 4d 32 02                           bclr PORTK,$02
 235a 32                                 pula                    ;trae a
@@ -1253,7 +1250,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 235f 5a 32                              staa PORTK
 2361 4d 32 01                           bclr PORTK,$01
 2364 4c 32 02                           bset PORTK,$02
-2367 18 0c 10 2b 10 29                  movb D260uS,Cont_Delay  ; delay
+2367 18 0c 10 2b 10 29                  movb D240us,Cont_Delay  ; delay
 236d 16 23 a1                           jsr Delay
 2370 4d 32 02                           bclr PORTK,$02
 2373 3d                                 rts
@@ -1268,7 +1265,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2378 44                                 lsra 
 2379 5a 32                              staa PORTK 
 237b 4c 32 03                           bset PORTK,$03 
-237e 18 0c 10 2b 10 29                  movb D260us,Cont_Delay
+237e 18 0c 10 2b 10 29                  movb D240us,Cont_Delay
 2384 16 23 a1                           jsr Delay
 2387 4d 32 02                           bclr PORTK,$02 
 238a 32                                 pula 
@@ -1277,7 +1274,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 238e 48                                 lsla 
 238f 5a 32                              staa PORTK 
 2391 4c 32 03                           bset PORTK,$03 
-2394 18 0c 10 2b 10 29                  movb D260us,Cont_Delay
+2394 18 0c 10 2b 10 29                  movb D240us,Cont_Delay
 239a 16 23 a1                           jsr Delay
 239d 4d 32 02                           bclr PORTK,$02
 23a0 3d                                 rts
@@ -1545,13 +1542,12 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 2540                    MODO_CONFIG:
 2540 1d 10 00 80                        BCLR Banderas,$80   ; borra bandera de competencia just in case
-                            ;si no es ni modo competencia ni modo resumen, se limpian VELOC, VUELTAS, VELPROM y se deshabilitan interrupciones por TCNT y PTH
 2544 79 10 11                               clr VELOC
 2547 4d 4d 80                   	bclr TSCR2,$80
 254a 1d 02 66 09            		bclr PIEH,$09
 254e ce 10 b2           		ldx #MSG_CONFIG1 ;carga el mensaje de configuracion
 2551 cd 10 c3                           ldy #MSG_CONFIG2
-2554 16 27 22                           jsr Cargar_LCD
+2554 16 27 21                           jsr Cargar_LCD
 2557 18 0b 02 10 22                     movb #$02,LEDS ;carga el LED asociado al modo
 255c 18 03 00 00 10 0d                  movw #$0000,TICK_EN ;borra TICK_EN y TICK_DIS
 2562 18 03 00 00 10 0f                  movw #$0000,TICK_DIS
@@ -1588,12 +1584,12 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         ;===============================================================================
                         ;===============================================================================
                         
-25af                    MODO_RESUM:
+25af                    MODO_RESUMEN:
 25af 1d 10 00 80                        bclr Banderas,$80    ;se actualiza el modo previo
 25b3 1d 02 66 09            		bclr PIEH,$09        ;apaga los sensores
 25b7 ce 11 17           		ldx #MSG_RESUMEN ;carga el mensaje resumen en la pantalla LCD
 25ba cd 10 a2                           ldy #MSG_COMPE2
-25bd 16 27 22                           jsr Cargar_LCD
+25bd 16 27 21                           jsr Cargar_LCD
 25c0 18 0b 08 10 22                     movb #$08,LEDS
 25c5 18 0c 10 12 10 17                  movb VUELTAS,BIN2 ;carga los valores de VUELTAS y VELPROM en 7 segmentos
 25cb 18 0c 10 13 10 16                  movb VELPROM,BIN1
@@ -1607,12 +1603,12 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 25d6 fe 10 32                           ldx SAVE_MED        ;se trean los ticks alcanzados
 25d9 8e 00 81                           cpx #129            ;129 ticks son 35 km/h, limite inferior
-25dc 22 35                              bhi INVALID_PANT 
+25dc 22 42                              bhi INVALID_PANT 
 25de 8e 00 30                           cpx #48             ;95 ticks 95 km/h, limite superior
-25e1 25 30                              blo INVALID_PANT 
+25e1 25 3d                              blo INVALID_PANT 
 25e3 79 10 32                           clr SAVE_MED
                         
-25e6 1e 10 00 10 7f     		BRSET Banderas,$10,SECOND_CHECK_PANT ;La velocidad es valida, se revisa CALC_TICKS
+25e6 1e 10 00 10 28     		BRSET Banderas,$10,VALID_PANT ;La velocidad es valida, se revisa CALC_TICKS
 25eb 1c 10 00 10                        BSET Banderas,$10 ;si CALC_TICKS es 0, se realizan los calculos asociados y se pone en 1
                         
                         
@@ -1630,127 +1626,98 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2609 7c 10 0f                           std TICK_DIS ;TICKS para 300m
 260c 18 03 00 00 10 30                  movw #$0000,TICKS_TIME ;se borra el temporizador de 100m
 2612 3d                                 rts
+                                        
+2613                    VALID_PANT:
+2613 1e 10 00 08 5f                     BRSET Banderas,$08,RESULTADO ;CALC_TICKS 1 se revisa si pantalla apagada
+2618 b6 10 16                           LDAA BIN1 ;PANT_FLG es 0
+261b 81 bb                              CMPA #$BB
+261d 26 2c                              BNE ESTADO_ESPERA ;si A es $BB, se retorna
+261f 3d                                 RTS
                         
+2620 b6 10 16           INVALID_PANT:	ldaa BIN1               ;la velocidad es invalida, se revisa si BIN1 es $AA
+2623 81 aa                              cmpa #$AA
+2625 27 24                              beq ESTADO_ESPERA    ;Si no se han puesto las lineas, se ponen
+2627 18 03 00 00 10 0d                  movw #$0000,TICK_EN     ;no es $AA, borra TICK_EN
+262d 18 03 00 45 10 0f                  movw #69,TICK_DIS       ;mantiene 3s
+2633 18 0b aa 10 16                     movb #$AA,BIN1          ;se ponen rayas en la pantalla de 7 segmentos
+2638 18 0b aa 10 17                     movb #$AA,BIN2
+263d 1c 10 00 08                        bset Banderas %00001000 ;se levanta PANT_FLG
+2641 ce 10 f6                           ldx #MSG_ALERTA1        ;se carga el mensaje de alerta
+2644 cd 11 06                           ldy #MSG_ALERTA2
+2647 16 27 21                           jsr Cargar_LCD
+264a 3d                                 rts
                         
-2613 b6 10 16           INVALID_PANT:	ldaa BIN1               ;la velocidad es invalida, se revisa si BIN1 es $AA
-2616 81 aa                              cmpa #$AA
-2618 27 24                              beq FIRST_CHECK_PANT    ;Si no se han puesto las lineas, se ponen
-261a 18 03 00 00 10 0d                  movw #$0000,TICK_EN     ;no es $AA, se borra TICK_EN
-2620 18 03 00 45 10 0f                  movw #69,TICK_DIS       ;mantiene 3s
-2626 18 0b aa 10 16                     movb #$AA,BIN1          ;se ponen rayas en la pantalla de 7 segmentos
-262b 18 0b aa 10 17                     movb #$AA,BIN2
-2630 1c 10 00 08                        bset Banderas %00001000 ;se levanta PANT_FLG
-2634 ce 10 f6                           ldx #MSG_ALERTA1        ;se carga el mensaje de alerta
-2637 cd 11 06                           ldy #MSG_ALERTA2
-263a 16 27 22                           jsr Cargar_LCD
-263d 3d                                 rts
+264b                    ESTADO_ESPERA:
+264b 1e 10 00 08 43                     brset Banderas,$08,FIN_PANT ;BIN1 es $AA, se revisa PANT_FLG
                         
-263e                    FIRST_CHECK_PANT:
-263e 1e 10 00 08 51                     brset Banderas,$08,FIN_PANT ;BIN1 es $AA, se revisa PANT_FLG
+2650 ce 10 70           		ldx #MSG_LIBRE1 ;carga del mensaje inicial
+2653 cd 10 d4                           ldy #MSG_ESPERA
+2656 16 27 21                           jsr Cargar_LCD
+2659 18 0b bb 10 16                     movb #$BB,BIN1 ;se apagan las pantallas de 7 segmentos
+265e 18 0b bb 10 17                     movb #$BB,BIN2
                         
-2643 ce 10 70           		ldx #MSG_LIBRE1 ;carga del mensaje inicial
-2646 cd 10 d4                           ldy #MSG_ESPERA
-2649 16 27 22                           jsr Cargar_LCD
-264c 18 0b bb 10 16                     movb #$BB,BIN1 ;se apagan las pantallas de 7 segmentos
-2651 18 0b bb 10 17                     movb #$BB,BIN2
+2663 f6 10 12                           ldab VUELTAS        ; se revisa si se lleg'o al maximo
+2666 f1 10 01                           cmpb NumVueltas
+2669 27 04                              beq BORRAR_PANTALLAS
+266b 1c 02 66 09                        bset PIEH,$09       ; deshabilida interrupciones por puertos ph3 y ph0
                         
-2656 f6 10 12                           ldab VUELTAS        ; se revisa si se lleg'o al maximo
-2659 f1 10 01                           cmpb NumVueltas
-265c 27 04                              beq CLEAR_PANT_VARS
-265e 1c 02 66 09                        bset PIEH,$09       ; deshabilida interrupciones por puertos ph3 y ph0
+266f                    BORRAR_PANTALLAS:
+266f 1d 10 00 10                        bclr Banderas,$10 ;se limpian las variables de la pantalla
+2673 79 10 11                           clr VELOC
+2676 3d                                 rts
                         
-2662                    CLEAR_PANT_VARS:
-2662 1d 10 00 10                        BCLR Banderas,$10 ;se limpian las variables de la pantalla
-2666 79 10 11                           CLR VELOC
-2669 3d                                 RTS
+2677                    RESULTADO:
+2677 b6 10 16                           ldaa BIN1
+267a 81 bb                              cmpa #$BB
+267c 26 15                              bne FIN_PANT
                         
-266a                    SECOND_CHECK_PANT:
-266a 1e 10 00 08 08                     BRSET Banderas,$08,CHECK_BIN1_BB_COMP ;CALC_TICKS era 1, se hacen las revisiones de $BB segun PANT_FLG
-266f b6 10 16                           LDAA BIN1 ;PANT_FLG es 0
-2672 81 bb                              CMPA #$BB
-2674 26 c8                              BNE FIRST_CHECK_PANT ;si A es $BB, se retorna
-2676 3d                                 RTS
-                        
-                        
-2677                    CHECK_BIN1_BB_COMP:
-2677 b6 10 16                           LDAA BIN1
-267a 81 bb                              CMPA #$BB
-267c 27 01                              BEQ BIN1_BB_COMP_MSG
-267e 3d                                 RTS
-                        
-267f                    BIN1_BB_COMP_MSG:
-267f ce 10 92                           LDX #MSG_COMPE1
-2682 cd 10 a2                           LDY #MSG_COMPE2
-2685 16 27 22                           JSR Cargar_LCD
-2688 18 0c 10 12 10 17                  MOVB VUELTAS,BIN2
-268e 18 0c 10 11 10 16                  MOVB VELOC,BIN1
-2694                    FIN_PANT:
-2694 3d                 	       RTS
+267e ce 10 92                           ldx #MSG_COMPE1
+2681 cd 10 a2                           ldy #MSG_COMPE2
+2684 16 27 21                           jsr Cargar_LCD
+2687 18 0c 10 12 10 17                  movb VUELTAS,BIN2
+268d 18 0c 10 11 10 16                  movb VELOC,BIN1
+2693                    FIN_PANT:
+2693 3d                                 rts
                         
                         ;===============================================================================
                         ;===============================================================================
                         ;===============================================================================
                         
-2695                    MODO_COMP:
-2695 1e 10 00 80 34                     brset Banderas,$80,ESTADO_COMPE ;revisa si ya esta se configuro la competencia una vez
-269a 79 10 00                           clr Banderas                    ;borra todas las baderas para inicial de nuevo
-269d 1c 10 00 80        		bset Banderas,$80               ;se actualiza el modo previo
-26a1 ce 10 70                           ldx #MSG_LIBRE1                 ;se carga el mensaje inicial
-26a4 cd 10 d4                           ldy #MSG_ESPERA
-26a7 16 27 22                           jsr Cargar_LCD
-26aa 1d 10 00 04                        bclr Banderas,$04               ;en este caso solo es necesario borrar ARRAY_OK
-26ae 4c 4d 80                           bset TSCR2,$80                  ;se habilita TCNT
-26b1 1c 02 66 09                        bset PIEH,$09                   ;se habilita keywakeup en PH0 y PH3.
-26b5 18 0b bb 10 16                     movb #$BB,BIN1
-26ba 18 0b bb 10 17                     movb #$BB,BIN2
+2694                    MODO_COMPETENCIA:
+2694 1e 10 00 80 34                     brset Banderas,$80,ESTADO_COMPE ;revisa si ya esta se configuro la competencia una vez
+2699 79 10 00                           clr Banderas                    ;borra todas las baderas para inicial de nuevo
+269c 1c 10 00 80        		bset Banderas,$80               ;se actualiza el modo previo
+26a0 ce 10 70                           ldx #MSG_LIBRE1                 ;se carga el mensaje inicial
+26a3 cd 10 d4                           ldy #MSG_ESPERA
+26a6 16 27 21                           jsr Cargar_LCD
+26a9 1d 10 00 04                        bclr Banderas,$04               ;Borrar ARRAY_OK
+26ad 4c 4d 80                           bset TSCR2,$80                  ;habilita TCNT
+26b0 1c 02 66 09                        bset PIEH,$09                   ;habilita keywakeup en PH0 y PH3
+26b4 18 0b bb 10 16                     movb #$BB,BIN1
+26b9 18 0b bb 10 17                     movb #$BB,BIN2
                         
-26bf 79 10 02                           clr ValorVueltas
-26c2 79 10 11                           clr VELOC
-26c5 79 10 09                           clr Num_Array
-26c8 79 10 12                           clr VUELTAS
-26cb 79 10 13                           clr VELPROM
-                        
-                        
-26ce                    ESTADO_COMPE:
-26ce 18 0b 04 10 22                     movb #$04,LEDS
-26d3 1f 10 00 40 0d                     brclr Banderas,$40,VEL_ZERO     ;se revisa si se debe imprimir el mensaje calculando
-26d8 1d 10 00 40                        bclr Banderas,$40
-26dc ce 10 70                           ldx #MSG_LIBRE1                 ;se imprime el mensaje calculando
-26df cd 10 e5                           ldy #MSG_CALCULANDO
-26e2 16 27 22                           jsr Cargar_LCD
-                        
-26e5                    VEL_ZERO:
-26e5 f7 10 11                           tst VELOC                       ;control de pantalla hasta que la velocidad no es 0
-26e8 27 03                              beq FIN_COMP
-26ea 16 25 d2                           jsr PANT_CTRL
-                        
-26ed                    FIN_COMP:
-26ed 3d                                 RTS
+26be 79 10 02                           clr ValorVueltas
+26c1 79 10 11                           clr VELOC
+26c4 79 10 09                           clr Num_Array
+26c7 79 10 12                           clr VUELTAS
+26ca 79 10 13                           clr VELPROM
                         
                         
+26cd                    ESTADO_COMPE:
+26cd 18 0b 04 10 22                     movb #$04,LEDS
+26d2 1f 10 00 40 0d                     brclr Banderas,$40,VEL_ZERO     ;se revisa si se debe imprimir el mensaje calculando
+26d7 1d 10 00 40                        bclr Banderas,$40
+26db ce 10 70                           ldx #MSG_LIBRE1                 ;se imprime el mensaje calculando
+26de cd 10 e5                           ldy #MSG_CALCULANDO
+26e1 16 27 21                           jsr Cargar_LCD
                         
-                        ;===============================================================================
-                        ;===============================================================================
-                        ;===============================================================================
+26e4                    VEL_ZERO:
+26e4 f7 10 11                           tst VELOC                       ;control de pantalla hasta que la velocidad no es 0
+26e7 27 03                              beq FIN_COMP
+26e9 16 25 d2                           jsr PANT_CTRL
                         
-26ee                    MODO_LIBRE:
-26ee 4f 38 80 2f                        brclr CRGINT,$80,FIN_LIBRE  ;Revisa si ya estuvo en libre 1 vez para no volver a configurar
-26f2 79 10 11                           clr VELOC
-26f5 79 10 12                           clr VUELTAS
-26f8 4d 4d 80                           bclr TSCR2,$80
-26fb 1d 02 66 09                        bclr PIEH %00001001         ;deshabilita los botones por pieh
-26ff 1d 10 00 80                        bclr Banderas,$80           ;borra bandera de competencia
-                        
-2703 ce 10 70                           ldx #MSG_LIBRE1
-2706 cd 10 81                           ldy #MSG_LIBRE2
-2709 16 27 22                           jsr Cargar_LCD
-270c 4d 38 80                           bclr CRGINT,$80
-270f 4d 4c 10                           bclr TIE,$10
-2712 18 0b ff 02 58                     movb #$FF,PTP
-2717 18 0b 00 02 68                     movb #$00,PTJ               ;habilita LEDS
-271c 18 0b 01 00 01                     movb #$01,PORTB             ;enciende los leds
-2721                    FIN_LIBRE:
-2721 3d                                 rts
+26ec                    FIN_COMP:
+26ec 3d                                 rts
                         
                         
                         
@@ -1758,74 +1725,99 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         ;===============================================================================
                         ;===============================================================================
                         
-2722 b6 10 2e           Cargar_LCD:     ldaa ADD_L1                     ;inicio de linea
-2725 16 23 41                           jsr Send_Command                ;env?a comando
-2728 18 0c 10 2c 10 29                  movb D40uS,Cont_Delay           ;delay
-272e 16 23 a1                           jsr Delay
+26ed                    MODO_LIBRE:
+26ed 4f 38 80 2f                        brclr CRGINT,$80,FIN_LIBRE  ;Revisa si ya estuvo en libre 1 vez para no volver a configurar
+26f1 79 10 11                           clr VELOC
+26f4 79 10 12                           clr VUELTAS
+26f7 4d 4d 80                           bclr TSCR2,$80
+26fa 1d 02 66 09                        bclr PIEH %00001001         ;deshabilita los botones por pieh
+26fe 1d 10 00 80                        bclr Banderas,$80           ;borra bandera de competencia
                         
-2731 a6 30              LINEA1:         ldaa 1,x+                       ;Se va cargando mensaje
-2733 81 00                              cmpa #$00
-2735 27 0e                              beq CARGAR_LINEA2               ;Se pasa a cargar linea 2
-                        
-2737 16 23 74                           jsr Send_Data
-                        
-273a 18 0c 10 2c 10 29                  movb D40uS,Cont_Delay
-2740 16 23 a1                           jsr Delay
-2743 20 ec                              bra LINEA1
-                        
-                        
-2745 b6 10 2f           CARGAR_LINEA2:  ldaa ADD_L2                     ;inicio linea 2
-2748 16 23 41                           jsr Send_Command
-274b 18 0c 10 2c 10 29                  movb D40uS,Cont_Delay
-2751 16 23 a1                           jsr Delay
+2702 ce 10 70                           ldx #MSG_LIBRE1
+2705 cd 10 81                           ldy #MSG_LIBRE2
+2708 16 27 21                           jsr Cargar_LCD
+270b 4d 38 80                           bclr CRGINT,$80
+270e 4d 4c 10                           bclr TIE,$10
+2711 18 0b ff 02 58                     movb #$FF,PTP
+2716 18 0b 00 02 68                     movb #$00,PTJ               ;habilita LEDS
+271b 18 0b 01 00 01                     movb #$01,PORTB             ;enciende los leds
+2720                    FIN_LIBRE:
+2720 3d                                 rts
                         
                         
-2754 a6 70              LINEA2:         ldaa 1,y+                       ; Se va cargando mensaje
-2756 81 00                              cmpa #$00
-2758 27 0e                              beq TERMINA_LCD
-275a 16 23 74                           jsr Send_Data
-275d 18 0c 10 2c 10 29                  movb D40uS,Cont_Delay           ; delay
-2763 16 23 a1                           jsr Delay
-2766 20 ec                              bra LINEA2
-                        
-2768 3d                 TERMINA_LCD:    rts
                         
                         ;===============================================================================
                         ;===============================================================================
                         ;===============================================================================
                         
-2769                    BCD_7SEG:
-2769 ce 10 50                           Ldx #SEGMENT
-276c cd 10 21                           Ldy #DISP4 ;Recorremos displays de derecha a izquierda
-276f 86 00                              Ldaa #0
+2721 b6 10 2e           Cargar_LCD:     ldaa ADD_L1                     ;inicio de linea
+2724 16 23 41                           jsr Send_Command                ;env?a comando
+2727 18 0c 10 2c 10 29                  movb D40uS,Cont_Delay           ;delay
+272d 16 23 a1                           jsr Delay
+                        
+2730 a6 30              LINEA1:         ldaa 1,x+                       ;Se va cargando mensaje
+2732 81 00                              cmpa #$00
+2734 27 0e                              beq CARGAR_LINEA2               ;Se pasa a cargar linea 2
+                        
+2736 16 23 74                           jsr Send_Data
+                        
+2739 18 0c 10 2c 10 29                  movb D40uS,Cont_Delay
+273f 16 23 a1                           jsr Delay
+2742 20 ec                              bra LINEA1
+                        
+                        
+2744 b6 10 2f           CARGAR_LINEA2:  ldaa ADD_L2                     ;inicio linea 2
+2747 16 23 41                           jsr Send_Command
+274a 18 0c 10 2c 10 29                  movb D40uS,Cont_Delay
+2750 16 23 a1                           jsr Delay
+                        
+                        
+2753 a6 70              LINEA2:         ldaa 1,y+                       ; Se va cargando mensaje
+2755 81 00                              cmpa #$00
+2757 27 0e                              beq TERMINA_LCD
+2759 16 23 74                           jsr Send_Data
+275c 18 0c 10 2c 10 29                  movb D40uS,Cont_Delay           ; delay
+2762 16 23 a1                           jsr Delay
+2765 20 ec                              bra LINEA2
+                        
+2767 3d                 TERMINA_LCD:    rts
+                        
+                        ;===============================================================================
+                        ;===============================================================================
+                        ;===============================================================================
+                        
+2768                    BCD_7SEG:
+2768 ce 10 50                           Ldx #SEGMENT
+276b cd 10 21                           Ldy #DISP4 ;Recorremos displays de derecha a izquierda
+276e 86 00                              Ldaa #0
                                         ;Carga de BCD1
-2771 b6 10 18                           Ldaa BCD1
-2774 f6 10 18                           Ldab BCD1
-2777 84 0f                              Anda #$0F
-2779 18 0a e4 7f                        Movb A,X,1,Y- ;se guarda en display4
+2770 b6 10 18                           Ldaa BCD1
+2773 f6 10 18                           Ldab BCD1
+2776 84 0f                              Anda #$0F
+2778 18 0a e4 7f                        Movb A,X,1,Y- ;se guarda en display4
+277c 54                                 Lsrb
 277d 54                                 Lsrb
 277e 54                                 Lsrb
 277f 54                                 Lsrb
-2780 54                                 Lsrb
-2781 18 0a e5 7f                        Movb B,X,1,Y-  ;se guarda en display3
+2780 18 0a e5 7f                        Movb B,X,1,Y-  ;se guarda en display3
                         
                         
-2785 ce 10 50                           Ldx #SEGMENT
-2788 cd 10 1f                           Ldy #DISP2 ;Recorremos displays de derecha a izquierda
-278b 86 00                              Ldaa #0
+2784 ce 10 50                           Ldx #SEGMENT
+2787 cd 10 1f                           Ldy #DISP2 ;Recorremos displays de derecha a izquierda
+278a 86 00                              Ldaa #0
                                         ;Carga de BCD1
-278d b6 10 19                           Ldaa BCD2
-2790 f6 10 19                           Ldab BCD2
-2793 84 0f                              Anda #$0F
-2795 18 0a e4 7f                        Movb A,X,1,Y- ;se guarda en display2
+278c b6 10 19                           Ldaa BCD2
+278f f6 10 19                           Ldab BCD2
+2792 84 0f                              Anda #$0F
+2794 18 0a e4 7f                        Movb A,X,1,Y- ;se guarda en display2
+2798 54                                 Lsrb
 2799 54                                 Lsrb
 279a 54                                 Lsrb
 279b 54                                 Lsrb
-279c 54                                 Lsrb
-279d 18 0a e5 7f                        Movb B,X,1,Y-  ;se guarda en display1
+279c 18 0a e5 7f                        Movb B,X,1,Y-  ;se guarda en display1
                         
-27a1 3d                 returnBCD_7SEG: Rts
+27a0 3d                 returnBCD_7SEG: Rts
 
-Executed: Sun Feb 28 20:06:02 2021
-Total cycles: 2261, Total bytes: 2184
+Executed: Sun Feb 28 20:53:19 2021
+Total cycles: 2256, Total bytes: 2183
 Total errors: 0, Total warnings: 0

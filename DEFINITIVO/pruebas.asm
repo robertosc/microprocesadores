@@ -1,14 +1,13 @@
 ;##############################################################################
-;                          Proyecto Final: Runmeter623
-;   Fecha: 30 de noviembre del 2020.
-;   Autor: Victor Yeom Song
+;                            Proyecto Final: Runmeter623
+;   Fecha: 01/03/2020
+;   Autores: Roberto S�nchez Y Guillermo Ram�rez
 ;
-;   Descripcion: El siguiente codigo para la tarjeta de entrenamiento dragon12 corresponde a un sistema de medicion de velocidad
-;   y despliegue de informacion en un velodromo. Cuenta con 4 modos; el modo config para configurar la cantidad de vueltas que
-;   se desean medir, el modo libre para tener al sistema en un tipo de modo ocioso, el modo competencia que mide la velocidad y
-;   la cantidad de vueltas realizadas por un ciclista y el modo resumen que le muestra al ciclista su rendimiento en forma de la
-;   velocidad promedio en la cantidad de vueltas medida. Todo el intercambio de informacion con el ciclista ocurre por medio del
-;   despliegue de datos en la pantalla LCD y la pantalla de 7 segmentos, as? como el teclado matricial en el caso del modo config.
+;   Este programa tiene como fin simular un dispositivo capaz de medir la velocidad
+;   a la cual se mueve un ciclista por una pista. Para ello se utilizan las inte-
+;   rrupciones PH� y PJ0 para simular los botones y se tienen insterrupciones para
+;   llevar los tiempos. Adem�s posee 4 modos accesables por medio de las configuraciones
+;   en los dipswitch ph7 y ph6.
 ;
 ;##############################################################################
 #include registers.inc
@@ -86,14 +85,14 @@ DISP4:          ds 1
 LEDS:           ds 1  ;PB1 para modo CONFIG, PB0 a modo RUN.
 CONT_DIG:       ds 1  ;Habilitador de pantalla
 CONT_TICKS:     ds 1  ;contador para el Output Compare
-DT:             ds 1  ;ciclo de trabajo. DT = N-K
+DT:             ds 1  ;ciclo de trabajoDT = N-K
 CONT_7SEG:      ds 2  ;contador de ticks de OC4
 
 CONT_200:       ds 1
 
 Cont_Delay:     ds 1
 D2ms:           db 100  ;2 milisegundos
-D260us:         db 12  ;modificar    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+D240us:         db 12   ;240us
 D40us:          db 2  ;40 microsegundos
 CLEAR_LCD:      db $01  ;comando para limpiar el LCD
 ADD_L1:         db $80  ;direccion inicio de linea 1
@@ -152,108 +151,103 @@ MSG_ALERTA2:    fcc "*FUERA DE RANGO*"
 MSG_RESUMEN:    fcc "  MODO RESUMEN  "
                 db EOM
 
+;===============================================================================
+;                            Configuracion del hardware
+;===============================================================================
 
-;*******************************************************************************
-;                             Programa principal
-;*******************************************************************************
-;------------------------------------------------------------------------------
-;                          Configuracion del hardware
-;------------------------------------------------------------------------------
-		org $2000
-		cli        ;habilita interrupciones mascarables
-		lds #$3BFF  ;inicializa el stack
+                org $2000
+                cli        ;habilita interrupciones mascarables
+                lds #$3BFF  ;inicializa el stack
 
 ;DIPSWITCH PH7 Y PH6
-		bclr DDRH,$C0
+                bclr DDRH,$C0
 
 ;Configuracion RTI:
-		bset CRGINT $80             ;Habilita RTI
-		movb #$17,RTICTL            ;periodo 1.024ms
+                bset CRGINT $80             ;Habilita RTI
+                movb #$17,RTICTL            ;periodo 1.024ms
 
 ;Keywakeup en puerto H:
-		bclr PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
-		movb #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
+                bclr PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
+                movb #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
 
 
 ;Output Compare en Canal 4:
-		bset TIOS $10 ;Habilida canal 4
-		bset TIE $10 ;Interrup en canal 4
-		bclr TCTL1 $03
-		bset TSCR1 $80 ;Habilita temporizacion
-		bset TSCR2 $04 ;Preescalador magnitud 16
+                bset TIOS $10 ;Habilida canal 4
+                bset TIE $10 ;Interrup en canal 4
+                bclr TCTL1 $03
+                bset TSCR1 $80 ;Habilita temporizacion
+                bset TSCR2 $04 ;Preescalador magnitud 16
 
 ;Pantalla 7 segmentos y leds
-		movb #$0F,DDRP ;habilita pantallas de 7 segmentos
-		movb #$FF,DDRB ;configura b como salidas
-		bset DDRJ,$02 ;salidas en los leds
+                movb #$0F,DDRP ;habilita pantallas de 7 segmentos
+                movb #$FF,DDRB ;configura b como salidas
+                bset DDRJ,$02 ;salidas en los leds
 
 ;LCD
-		movb #$FF,DDRK ;Control de LCD
+                movb #$FF,DDRK ;Control de LCD
 
 ;Configuracion del ATD
-		movb #$30,ATD0CTL3
-		movb #$B3,ATD0CTL4
-		movb #$87,ATD0CTL5
+                movb #$30,ATD0CTL3
+                movb #$B3,ATD0CTL4
+                movb #$87,ATD0CTL5
 
 ;Teclado puerto A:
-		movb #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
-		bset PUCR $01       ;resistencias de pullup para el teclado
+                movb #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
+                bset PUCR $01       ;resistencias de pullup para el teclado
 
 
-;------------------------------------------------------------------------------
+;===============================================================================
 ;                       Inicializacion de variables
-;------------------------------------------------------------------------------
-;Variables del teclado matricial
-		movb #$FF,Tecla
-		movb #$FF,Tecla_IN
-		movb #$FF,Num_Array
-		clr Cont_Reb
-		clr Cont_TCL
-		clr Patron
-		ldaa MAX_TCL
-		ldx #NUM_ARRAY-1
+;===============================================================================
+
+;Variables teclado matricial
+                movb #$FF,Tecla
+                movb #$FF,Tecla_IN
+                movb #$FF,Num_Array
+                clr Cont_Reb
+                clr Cont_TCL
+                clr Patron
+                ldaa MAX_TCL
+                ldx #NUM_ARRAY-1
 
 BORRAR_ARRAY:                   
-		movb #$FF,A,X
-		dbne A,BORRAR_ARRAY         ;borra variables respectivas al teclado
+                movb #$FF,A,X
+                dbne A,BORRAR_ARRAY         ;borra variables respectivas al teclado
 
+                movb SEGMENT,DISP3 ;
+                movb SEGMENT,DISP4 ;
+                movb #0,BRILLO
+                movb #$02,LEDS
+                clr CONT_7SEG
+                clr CONT_TICKS
+                clr CONT_DIG
+                clr BCD1
+                clr BCD2
 
-;Displays de 7 segmentos y LEDS:
-		movb SEGMENT,DISP3 ;
-		movb SEGMENT,DISP4 ;
-		movb #0,BRILLO
-		movb #$02,LEDS
-		clr CONT_7SEG
-		clr CONT_TICKS
-		clr CONT_DIG
-		clr BCD1
-		clr BCD2
+                movw #$0000,TICKS_TIME
+                movw #$0000,TICK_EN
+                movw #$0000,TICK_DIS
+                clr Banderas
+                clr NumVueltas
+                clr VUELTAS
+                clr ValorVueltas
+                clr VELPROM
+                clr VELOC
+                clr Cont_Reb
+                clr Cont_TCL
 
-;Programa:
-		movw #$0000,TICKS_TIME
-		movw #$0000,TICK_EN
-		movw #$0000,TICK_DIS
-		clr Banderas
-		clr NumVueltas
-		clr VUELTAS
-		clr ValorVueltas
-		clr VELPROM
-		clr VELOC
-		clr Cont_Reb
-		clr Cont_TCL
-
-		bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
-		bset TSCR1,$80 ;se habilita el modulo de timer
-		bset CRGINT,$80 ;se habilitan las interrupciones RTI
-		movb #$C2,ATD0CTL2
+                bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
+                bset TSCR1,$80 ;se habilita el modulo de timer
+                bset CRGINT,$80 ;se habilitan las interrupciones RTI
+                movb #$C2,ATD0CTL2
     
-		ldd TCNT
-		addd #30    ; ticks para el prescalador elegido
-		std TC4 ;se carga el valor inicial para interrupcion de OC4
+                ldd TCNT
+                addd #30    ; ticks para el prescalador elegido
+                std TC4 ;se carga el valor inicial para interrupcion de OC4
     ;se habilitan las interrupciones por ATD0
-		ldaa #160
+                ldaa #160
 CONFIG_ATD:
-    		dbne A,CONFIG_ATD ;3;tiempo de inicio del ATD (10us)
+                    dbne A,CONFIG_ATD ;3;tiempo de inicio del ATD (10us)
 
 ;Conf LCD
                 ldx #iniDsp
@@ -274,7 +268,10 @@ INITIALIZE_LCD:
                 jsr Delay
 
 
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 MAIN:
 FIRST_CONFIG:
                 movb #$BB,BIN2           ;apaga pantallas 7seg
@@ -292,13 +289,13 @@ LLAMAR_LIBRE:
 
 
 LLAMAR_COMPE:
-                jsr MODO_COMP     ;se ejecuta el modo competicion
+                jsr MODO_COMPETENCIA     ;se ejecuta el modo competicion
                 bra DIP_SWITCH  ;se vuelve a leer el modo de operacion
 
 
 LLAMAR_RESUMEN:
                 bclr PIEH,%00001001
-                jsr MODO_RESUM       ;se ejecuta el modo resumen
+                jsr MODO_RESUMEN       ;se ejecuta el modo resumen
                 bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
 
 
@@ -592,7 +589,7 @@ Send_Command:   psha                    ;se guarda a en pila
                 staa PORTK              ;guarda a en portk
                 bclr PORTK,$01          ;modif bits menos significativos
                 bset PORTK,$02
-                movb D260uS,Cont_Delay  ;delay
+                movb D240us,Cont_Delay  ;delay
                 jsr Delay
                 bclr PORTK,$02
                 pula                    ;trae a
@@ -602,7 +599,7 @@ Send_Command:   psha                    ;se guarda a en pila
                 staa PORTK
                 bclr PORTK,$01
                 bset PORTK,$02
-                movb D260uS,Cont_Delay  ; delay
+                movb D240us,Cont_Delay  ; delay
                 jsr Delay
                 bclr PORTK,$02
                 rts
@@ -617,7 +614,7 @@ Send_Data:
                 lsra 
                 staa PORTK 
                 bset PORTK,$03 
-                movb D260us,Cont_Delay
+                movb D240us,Cont_Delay
                 jsr Delay
                 bclr PORTK,$02 
                 pula 
@@ -626,7 +623,7 @@ Send_Data:
                 lsla 
                 staa PORTK 
                 bset PORTK,$03 
-                movb D260us,Cont_Delay
+                movb D240us,Cont_Delay
                 jsr Delay
                 bclr PORTK,$02
                 rts
@@ -894,7 +891,6 @@ end_formar:     movb #$FF,Tecla_IN
 
 MODO_CONFIG:
                 BCLR Banderas,$80   ; borra bandera de competencia just in case
-    ;si no es ni modo competencia ni modo resumen, se limpian VELOC, VUELTAS, VELPROM y se deshabilitan interrupciones por TCNT y PTH
                     clr VELOC
         	bclr TSCR2,$80
     		bclr PIEH,$09
@@ -937,7 +933,7 @@ VALIDO:
 ;===============================================================================
 ;===============================================================================
 
-MODO_RESUM:
+MODO_RESUMEN:
                 bclr Banderas,$80    ;se actualiza el modo previo
     		bclr PIEH,$09        ;apaga los sensores
 		ldx #MSG_RESUMEN ;carga el mensaje resumen en la pantalla LCD
@@ -961,7 +957,7 @@ PANT_CTRL:
                 blo INVALID_PANT 
                 clr SAVE_MED
 
-		BRSET Banderas,$10,SECOND_CHECK_PANT ;La velocidad es valida, se revisa CALC_TICKS
+		BRSET Banderas,$10,VALID_PANT ;La velocidad es valida, se revisa CALC_TICKS
                 BSET Banderas,$10 ;si CALC_TICKS es 0, se realizan los calculos asociados y se pone en 1
 
 
@@ -979,12 +975,18 @@ PANT_CTRL:
                 std TICK_DIS ;TICKS para 300m
                 movw #$0000,TICKS_TIME ;se borra el temporizador de 100m
                 rts
-
+                
+VALID_PANT:
+                BRSET Banderas,$08,RESULTADO ;CALC_TICKS 1 se revisa si pantalla apagada
+                LDAA BIN1 ;PANT_FLG es 0
+                CMPA #$BB
+                BNE ESTADO_ESPERA ;si A es $BB, se retorna
+                RTS
 
 INVALID_PANT:	ldaa BIN1               ;la velocidad es invalida, se revisa si BIN1 es $AA
                 cmpa #$AA
-                beq FIRST_CHECK_PANT    ;Si no se han puesto las lineas, se ponen
-                movw #$0000,TICK_EN     ;no es $AA, se borra TICK_EN
+                beq ESTADO_ESPERA    ;Si no se han puesto las lineas, se ponen
+                movw #$0000,TICK_EN     ;no es $AA, borra TICK_EN
                 movw #69,TICK_DIS       ;mantiene 3s
                 movb #$AA,BIN1          ;se ponen rayas en la pantalla de 7 segmentos
                 movb #$AA,BIN2
@@ -994,7 +996,7 @@ INVALID_PANT:	ldaa BIN1               ;la velocidad es invalida, se revisa si BI
                 jsr Cargar_LCD
                 rts
 
-FIRST_CHECK_PANT:
+ESTADO_ESPERA:
                 brset Banderas,$08,FIN_PANT ;BIN1 es $AA, se revisa PANT_FLG
 
 		ldx #MSG_LIBRE1 ;carga del mensaje inicial
@@ -1005,51 +1007,41 @@ FIRST_CHECK_PANT:
 
                 ldab VUELTAS        ; se revisa si se lleg'o al maximo
                 cmpb NumVueltas
-                beq CLEAR_PANT_VARS
+                beq BORRAR_PANTALLAS
                 bset PIEH,$09       ; deshabilida interrupciones por puertos ph3 y ph0
 
-CLEAR_PANT_VARS:
-                BCLR Banderas,$10 ;se limpian las variables de la pantalla
-                CLR VELOC
-                RTS
+BORRAR_PANTALLAS:
+                bclr Banderas,$10 ;se limpian las variables de la pantalla
+                clr VELOC
+                rts
 
-SECOND_CHECK_PANT:
-                BRSET Banderas,$08,CHECK_BIN1_BB_COMP ;CALC_TICKS era 1, se hacen las revisiones de $BB segun PANT_FLG
-                LDAA BIN1 ;PANT_FLG es 0
-                CMPA #$BB
-                BNE FIRST_CHECK_PANT ;si A es $BB, se retorna
-                RTS
+RESULTADO:
+                ldaa BIN1
+                cmpa #$BB
+                bne FIN_PANT
 
-
-CHECK_BIN1_BB_COMP:
-                LDAA BIN1
-                CMPA #$BB
-                BEQ BIN1_BB_COMP_MSG
-                RTS
-
-BIN1_BB_COMP_MSG:
-                LDX #MSG_COMPE1
-                LDY #MSG_COMPE2
-                JSR Cargar_LCD
-                MOVB VUELTAS,BIN2
-                MOVB VELOC,BIN1
+                ldx #MSG_COMPE1
+                ldy #MSG_COMPE2
+                jsr Cargar_LCD
+                movb VUELTAS,BIN2
+                movb VELOC,BIN1
 FIN_PANT:
-	       RTS
+                rts
 
 ;===============================================================================
 ;===============================================================================
 ;===============================================================================
 
-MODO_COMP:
+MODO_COMPETENCIA:
                 brset Banderas,$80,ESTADO_COMPE ;revisa si ya esta se configuro la competencia una vez
                 clr Banderas                    ;borra todas las baderas para inicial de nuevo
 		bset Banderas,$80               ;se actualiza el modo previo
                 ldx #MSG_LIBRE1                 ;se carga el mensaje inicial
                 ldy #MSG_ESPERA
                 jsr Cargar_LCD
-                bclr Banderas,$04               ;en este caso solo es necesario borrar ARRAY_OK
-                bset TSCR2,$80                  ;se habilita TCNT
-                bset PIEH,$09                   ;se habilita keywakeup en PH0 y PH3.
+                bclr Banderas,$04               ;Borrar ARRAY_OK
+                bset TSCR2,$80                  ;habilita TCNT
+                bset PIEH,$09                   ;habilita keywakeup en PH0 y PH3
                 movb #$BB,BIN1
                 movb #$BB,BIN2
 
