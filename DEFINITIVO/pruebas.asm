@@ -13,31 +13,37 @@
 ;##############################################################################
 #include registers.inc
 
-;------------------------------------------------------------------------------
+;===============================================================================
+
 ;     Declaracion de las estructuras de datos y vectores de interrupcion
-;------------------------------------------------------------------------------
-;Vectores de interrupcion:
-                org $3E4C   ;direccion del vector de interrupcion PTH.
-                dw CALCULOS ;direccion de la subrutina de servicio a interrupcion PTH.
-                org $3E52   ;direccion del vector de interrupcion ATD0.
-                dw ATD_ISR  ;direccion de la subrutina de servicio a interrupcion ATD0.
-                org $3E5E   ;direccion del vector de interrupcion TCNT.
-                dw TCNT_ISR ;direccion de la subrutina de servicio a interrupcion TCNT.
-                org $3E66   ;direccion del vector de interrupcion OC4.
-                dw OC4_ISR  ;direccion de la subrutina de servicio a interrupcion OC4.
-                org $3E70   ;direccion del vector de interrupcion RTI.
-                dw RTI_ISR  ;direccion de la subrutina de servicio a interrupcion RTI.
+
+;===============================================================================
+
+;Interrupciones
+                org $3E4C   ;Interrupcion PTH.
+                dw CALCULOS ;direccion de interrupcion PTH
+                org $3E52   ;Interrupcion ATD0
+                dw ATD_ISR  ;direccion de interrupcion ATD0
+                org $3E5E   ;Interrupcion TCNT
+                dw TCNT_ISR ;direccion de interrupcion TCNT
+                org $3E66   ;Interrupcion OC4
+                dw OC4_ISR  ;direccion de interrupcion OC4
+                org $3E70   ;Interrupcion RTI
+                dw RTI_ISR  ;direccion de interrupcion RTI
 
 
-;Estructuras de datos:
+;Estructuras de datos
                 org $1000
-                        ;COMPE:X:X:
-Banderas:       ds 1  ;Tiene el formato: COMPE:COMPE_STATE:X:CALC_TICKS:PANT_FLG:ARRAY_OK:TCL_LEIDA:TCL_LISTA.
-                      ;MOD_PREV_H y MOD_PREV_L indican el modo de funcionamiento previo al que se utiliza, usado para funcionamiento de los modos competencia y libre
-                      ;PANT_FLG indica el estado de las pantallas a utilizar por PANT_CTRL
-                      ;ARRAY_OK indica que se presiono la tecla Enter y que en el arreglo ya se tienen todos los valores leidos.
-                      ;TCL_LEIDA indica que ya se habia tenido una lectura del teclado y que se estaba esperando a que se diera la supresion de rebotes.
-                      ;TCL_LISTA indica que luego de la supresion de rebotes se confirmo que si se presiono una tecla.
+
+Banderas:       ds 1  ;COMPE:COMPE_STATE:X:CALC_TICKS:PANT_FLG:ARRAY_OK:TCL_LEIDA:TCL_LISTA.
+                      ;COMPE = indica si ya se configuro el modo competencia
+                      ;COMPE_STATE = indica el estado en que esta el modo competencia
+                      ;X
+                      ;CALC_TICKS = indica si ya se contaron los ticks
+                      ;PANT_FLAG = Indica que se debe imprimir en pantalla
+                      ;Arrayok = indica si el array esta bien
+                      ;tcl_leida = indica si se leyo un tecla en cierta corrida
+
 
 NumVueltas:     ds 1
 ValorVueltas:   ds 1
@@ -153,100 +159,101 @@ MSG_RESUMEN:    fcc "  MODO RESUMEN  "
 ;------------------------------------------------------------------------------
 ;                          Configuracion del hardware
 ;------------------------------------------------------------------------------
-    org $2000
-;Configuracion RTI:
-    bset CRGINT $80             ;Habilita RTI
-    movb #$17,RTICTL            ;periodo 1.024ms
-
-;Keywakeup en puerto H:
-    bclr PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
-    movb #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
+		org $2000
+		cli        ;habilita interrupciones mascarables
+		lds #$3BFF  ;inicializa el stack
 
 ;DIPSWITCH PH7 Y PH6
-    bclr DDRH,$C0
+		bclr DDRH,$C0
 
+;Configuracion RTI:
+		bset CRGINT $80             ;Habilita RTI
+		movb #$17,RTICTL            ;periodo 1.024ms
 
-;Pantalla 7 segmentos y leds
-    movb #$0F,DDRP ;habilita pantallas de 7 segmentos
-    movb #$FF,DDRB ;configura b como salidas
-    bset DDRJ %00000010 ;salidas en los leds
+;Keywakeup en puerto H:
+		bclr PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
+		movb #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
+
 
 ;Output Compare en Canal 4:
-    bset TIOS $10 ;Habilida canal 4
-    bset TIE $10 ;Interrup en canal 4
-    bclr TCTL1 $03 
-    bset TSCR1 $80 ;Habilita temporizacion
-    bset TSCR2 $04 ;Preescalador magnitud 16
+		bset TIOS $10 ;Habilida canal 4
+		bset TIE $10 ;Interrup en canal 4
+		bclr TCTL1 $03
+		bset TSCR1 $80 ;Habilita temporizacion
+		bset TSCR2 $04 ;Preescalador magnitud 16
 
+;Pantalla 7 segmentos y leds
+		movb #$0F,DDRP ;habilita pantallas de 7 segmentos
+		movb #$FF,DDRB ;configura b como salidas
+		bset DDRJ,$02 ;salidas en los leds
 
 ;LCD
-    movb #$FF,DDRK ;Control de LCD
+		movb #$FF,DDRK ;Control de LCD
 
 ;Configuracion del ATD
-    movb #$30,ATD0CTL3
-    movb #$B3,ATD0CTL4
-    movb #$87,ATD0CTL5
+		movb #$30,ATD0CTL3
+		movb #$B3,ATD0CTL4
+		movb #$87,ATD0CTL5
 
 ;Teclado puerto A:
-    movb #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
-    bset PUCR $01       ;resistencias de pullup para el teclado
+		movb #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
+		bset PUCR $01       ;resistencias de pullup para el teclado
 
-    CLI        ;habilita interrupciones mascarables.
-    LDS #$3BFF  ;inicializa el stack
+
 ;------------------------------------------------------------------------------
 ;                       Inicializacion de variables
 ;------------------------------------------------------------------------------
 ;Variables del teclado matricial
-    movb #$FF,Tecla
-    movb #$FF,Tecla_IN
-    movb #$FF,Num_Array
-    clr Cont_Reb
-    clr Cont_TCL
-    clr Patron
-    ldaa MAX_TCL
-    ldx #NUM_ARRAY-1
+		movb #$FF,Tecla
+		movb #$FF,Tecla_IN
+		movb #$FF,Num_Array
+		clr Cont_Reb
+		clr Cont_TCL
+		clr Patron
+		ldaa MAX_TCL
+		ldx #NUM_ARRAY-1
 
 BORRAR_ARRAY:                   
-    movb #$FF,A,X
-    dbne A,BORRAR_ARRAY         ;borra variables respectivas al teclado
+		movb #$FF,A,X
+		dbne A,BORRAR_ARRAY         ;borra variables respectivas al teclado
 
 
 ;Displays de 7 segmentos y LEDS:
-    movb SEGMENT,DISP3 ;
-    movb SEGMENT,DISP4 ;
-    movb #0,BRILLO
-    movb #$02,LEDS
-    clr CONT_7SEG
-    clr CONT_TICKS
-    clr CONT_DIG
-    clr BCD1
-    clr BCD2
+		movb SEGMENT,DISP3 ;
+		movb SEGMENT,DISP4 ;
+		movb #0,BRILLO
+		movb #$02,LEDS
+		clr CONT_7SEG
+		clr CONT_TICKS
+		clr CONT_DIG
+		clr BCD1
+		clr BCD2
 
 ;Programa:
-    movw #$0000,TICKS_TIME
-    movw #$0000,TICK_EN
-    movw #$0000,TICK_DIS
-    clr Banderas
-    clr NumVueltas
-    clr VUELTAS
-    clr ValorVueltas
-    clr VELPROM
-    clr VELOC
-    clr Cont_Reb
-    clr Cont_TCL
+		movw #$0000,TICKS_TIME
+		movw #$0000,TICK_EN
+		movw #$0000,TICK_DIS
+		clr Banderas
+		clr NumVueltas
+		clr VUELTAS
+		clr ValorVueltas
+		clr VELPROM
+		clr VELOC
+		clr Cont_Reb
+		clr Cont_TCL
 
-    bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
-    bset TSCR1,$80 ;se habilita el modulo de timer
-    bset CRGINT,$80 ;se habilitan las interrupciones RTI
-    movb #$C2,ATD0CTL2
+		bset TIE,$10 ;se habilitan las interrupciones por output compare en canal 4
+		bset TSCR1,$80 ;se habilita el modulo de timer
+		bset CRGINT,$80 ;se habilitan las interrupciones RTI
+		movb #$C2,ATD0CTL2
     
-    ldd TCNT
-    addd #30
-    std TC4 ;se carga el valor inicial para interrupcion de OC4
+		ldd TCNT
+		addd #30    ; ticks para el prescalador elegido
+		std TC4 ;se carga el valor inicial para interrupcion de OC4
     ;se habilitan las interrupciones por ATD0
-    ldaa #160
+		ldaa #160
 CONFIG_ATD:
-    dbne A,CONFIG_ATD ;3 ciclos del reloj * 160 * (1/48MHz) = 10 us. Tiempo de inicio del ATD
+    		dbne A,CONFIG_ATD ;3;tiempo de inicio del ATD (10us)
 
 ;Conf LCD
                 ldx #iniDsp
@@ -279,7 +286,7 @@ FIRST_CONFIG:
 
 
 LLAMAR_LIBRE:
-                bclr PIEH %00001001
+                bclr PIEH,%00001001
                 jsr MODO_LIBRE
                 bra DIP_SWITCH
 
@@ -290,22 +297,17 @@ LLAMAR_COMPE:
 
 
 LLAMAR_RESUMEN:
-                bclr PIEH %00001001
+                bclr PIEH,%00001001
                 jsr MODO_RESUM       ;se ejecuta el modo resumen
                 bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
 
 
 LLAMAR_CONFIF:
-                bclr PIEH %00001001
+                bclr PIEH,%00001001
                 jsr MODO_CONFIG      ;se ejecuta el modo config
                 bra DIP_SWITCH     ;se vuelve a leer el modo de operacion
 
 
-
-
-;------------------------------------------------------------------------------
-;       Subrutinas de interrupciones
-;------------------------------------------------------------------------------
 
 DIP_SWITCH:
                 brclr PTIH,#$C0,LLAMAR_LIBRE
@@ -319,10 +321,9 @@ CONF_COMP:
                 brclr PTIH,#$80,LLAMAR_CONFIF
                 bra LLAMAR_COMPE
     
-;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion PTH CALCULOS: Subrutina utilizada para la lectura de los sensores y subsecuentes
-;      calculos de velocidad, velocidad promedio, cantidad de vueltas y ticks necesarios para recorrer 100 m.
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
 
 
 CALCULOS:
@@ -330,16 +331,10 @@ CALCULOS:
                 brset PIFH,$01,PH0_ISR
 NO_VALID_CALC:
                 rti
-;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion PTH0: Subrutina de atencion a la interrupcion por key wakeup en PH0. Simula el segundo sensor
-;      del velodromo y determina si la velocidad medida esta en el rango de velocidades valido, ademas de actualizar la velocidad promedio
-;      en el caso de que lo este.
-;      INPUTS: Cont_Reb, TICK_MED
-;      OUTPUTS: VELOC, VELPROM, VUELTAS, VELOCIDAD_VAL, CANT_VUELTAS_MAXIMA
-;      Formula para CALCULOS la velocidad: VELOC = 9064/TICK_MED
-;      Formula para CALCULOS/actualizar la velocidad promedio: VELPROM = (VELPROM*(VUELTAS-1) + VELOC)/VUELTAS
-;------------------------------------------------------------------------------
-
+                
+;===============================================================================
+;===============================================================================
+;===============================================================================
 PH0_ISR:
                 bset PIFH,$01                   ;borra bandera de interrupcion
                 tst Cont_Reb                    ;revisa rebotes
@@ -384,12 +379,10 @@ FIN_PH0:
                 rti
 
 
-;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion PTH3: Subrutina de atencion a la interrupcion por key wakeup en PH3. Simula el primer sensor
-;      del velodromo y se encarga de borrar TICK_MED, asi como indicar que se debe cargar el Mensaje Cargando en la pantalla LCD
-;      INPUTS: Cont_Reb
-;      OUTPUTS: TICK_MED, DISPLAY_CALC
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 PH3_ISR:
                 bset PIFH,$08                   ;limpia bandera de interrup para volver a usarla
                 tst Cont_Reb
@@ -404,12 +397,10 @@ FIN_PH3:
 
 
 
-;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion TCNT: Subrutina de atencion por timer overflow. Se encarga de incrementar TICK_MED y
-;      decrementar TICK_DIS y TICK_EN, esto con el objetivo de CALCULOS la velocidad y marcar los tiempos en los que se deben actualizar
-;      las pantallas. Usa prescaler de 8, el tiempo de tick es dado por Ttick = 8*2^(16) / 24MHz, que es aproximadamente 21.8 ms
-;      OUTPUTS: TICK_MED, TICK_EN, TICK_DIS, PANT_FLG
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 
 TCNT_ISR:
                 bset TFLG2,$80                  ;activa interrupcion
@@ -455,13 +446,10 @@ TICKDIS_ZERO:
 FIN_TCNT:
                 rti
 
-;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion ATD0: Subrutina utilizada para la conversion analogica digital del potenciometro
-;      de la tarjeta dragon 12, utilizado para controlar el brillo de los leds y las pantallas de 7 segmentos.
-;      Se toman 6 mediciones y se calcula el promedio.
-;      INPUTS: ADR00H,ADR01H,ADR02H,ADR03H,ADR04H,ADR05H
-;      OUTPUTS: BRILLO, DT
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 
 ATD_ISR:
                 ldd ADR00H                      ;Se hace en d para sumar words
@@ -483,15 +471,10 @@ ATD_ISR:
 
                 RTI
 
-;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion RTI: Esta subrutina descuenta contadores
-;     siempre y cuando no sean cero. Los ticks del RTI duran 1.024 ms, por lo
-;     que si se cargan variables con X valor se pueden contar aproximadamente
-;     X milisegundos. Cont_Reb tiene un valor maximo de 10; se utiliza para
-;     suprimir rebotes contando ~10ms. Tambien lleva el tiempo para iniciar ciclos de conversion del ATD
-;     INPUTS: Cont_Reb, CONT_200
-;     OUTPUTS: Cont_Reb, CONT_200
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 RTI_ISR:        bset CRGFLG,$80                 ;borra bandera de interrupcion RTI
                 tst Cont_Reb                    
                 beq TIMER                       ;si llegaron los rebotes a 0, se termina la rubrutina
@@ -511,15 +494,10 @@ NO_RESET:
 FIN_RTI:
                 Rti
 
-;------------------------------------------------------------------------------
-;   Subrutina de servicio a interrupcion por output compare en el canal 4:
-;     Descuenta Cont_Delay, refresca cada 100 ms (5000ticks) los valores de
-;     DISP1-DISP4, multiplexa el bus del puerto B para mostrar informacion en
-;     los displays de 7 segmentos y los LEDS, y todo con un ciclo de trabajo
-;     variable que depende de DT.
-;     INPUTS: DT, Cont_Delay, LEDS, CONT_TICKS, DISP1-DISP4
-;     OUTPUTS: Cont_Delay, DISP1-DISP4
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 OC4_ISR:
                 ldaa Cont_Delay                 ;Revisamos Cont_Delay para ver si hay que restarle
                 cmpa #0
@@ -603,11 +581,10 @@ FIN_OC4:
                 std TC4                         ;actualiza el nuevo valor a alcanzar.
                 rti
 
-;------------------------------------------------------------------------------
-;   Subrutina Send_Command: se encarga de enviar al LCD el comando que recibe
-;     por el acumulador A.
-;     INPUTS: Acumulador A, 260us
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 Send_Command:   psha                    ;se guarda a en pila
                 anda #$F0               ;mascara de parte alta
                 lsra                    ;deja limpios los dos bits menos significativos
@@ -629,8 +606,10 @@ Send_Command:   psha                    ;se guarda a en pila
                 jsr Delay
                 bclr PORTK,$02
                 rts
+;===============================================================================
+;===============================================================================
+;===============================================================================
 
-;------------------------------------------------------------------------------
 Send_Data:
                 psha 
                 anda #$F0 
@@ -653,24 +632,20 @@ Send_Data:
                 rts
 
 
-;------------------------------------------------------------------------------
-;   Subrutina Delay: se mantiene en un loop cerrado hasta que Cont_Delay sea 0.
-;     Cont_Delay es descontado por OC4 a 50 kHz.
-;     INPUTS: Cont_Delay
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 Delay:
                 tst Cont_Delay      ;Espera hasta que OC4 disminuya
                 bne Delay
                 rts
 
 
-;------------------------------------------------------------------------------
-;   Subrutina BCD_BIN: el arreglo Num_Array corresponde a un numero en BCD donde
-;     cada entrada es un digito. Esta subrutina toma este arreglo y calcula en
-;     binario el valor numerico del arreglo. El resultado se almacena en ValorVueltas.
-;     INPUTS: NUM_ARRAY
-;     OUTPUTS:ValorVueltas
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 BCD_BIN:        ldx #Num_Array
                 ldab 1,x           ;revisamos si la unidad es distinta de FF
                 cmpb #$FF
@@ -692,13 +667,10 @@ DECENA:
 
                 rts
 
-;------------------------------------------------------------------------------
-;   Subrutina BIN_BCD: esta subrutina realiza la conversion de un numero
-;     binario entre 0 y 99 (inclusivos) a su representacion en BCD. El numero
-;     a convertir se recibe como parametro por el registro A. El resultado en
-;     BCD se devuelve por la variable BCD_L, donde el nibble mas significativo son
-;     las decenas y el menos significativo las unidades.
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 BIN_BCD:
 
                 Ldab #7  ; Contador B=15
@@ -735,17 +707,10 @@ men301:
 
                 Rts
 
-;------------------------------------------------------------------------------
-;   Subrutina CONV_BIN_BCD: recibe como parametros de entrada las variables BIN1 y
-;     BIN2 y realiza la conversion a BCD de cada una de estas variables. Luego de la conversion, si
-;     el numero es menor que 10 significa que el display de 7 segmentos utilizado
-;     para las decenas no es necesario que este encendido; en este caso se escribe
-;     $B en el nibble mas significativo de BCD1 y BCD2 para indicarlo. Carga $BB
-;     en BCD1 o BCD2 dependiendo de si deben estar apagados, mientras que carga
-;     $AA si deben tener una raya.
-;     INPUTS: BIN1, BIN2
-;     OUTPUTS: BCD1, BCD2
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 CONV_BIN_BCD:
                 Ldaa BIN1
 
@@ -803,13 +768,10 @@ mayor2:          Staa BCD2 ;Guardamos el valor en BCD1
 
 FIN_CONV:        Rts
 
-;------------------------------------------------------------------------------
-; Subrutina TAREA_TECLADO: En esta subrutina se da la lectura del teclado. Aqui
-;     se lee el teclado en el puerto A, se suprimen los rebotes, y se maneja la
-;     situacion de tecla retenida.
-;     INPUTS: Cont_Reb, Tecla, ARRAY_OK, Tecla_IN
-;     OUTPUTS: TCL_LISTA
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 TAREA_TECLADO:
                 Ldaa Cont_Reb
                 Cmpa #0
@@ -847,8 +809,10 @@ DELETE:
 RETORNAR:
                 RTS
 
+;===============================================================================
+;===============================================================================
+;===============================================================================
 
-;------------------------------------------------------------------------------
 MUX_TECLADO:    movb #$EF,Patron                ; Patron inicial
                 ldd #$F000                       ; final cuando se desplaza patron
 
@@ -869,7 +833,10 @@ columna0:       ldx #Teclas
                 movb B,X,Tecla                      ; Se mueve la tecla encontrada
                 bra TERMINAR
 
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 FORMAR_ARRAY:   ldaa Tecla_IN                   ; valor ingresado
                 ldab Cont_TCL                   ; cantidad de numeros
                 ldx #Num_Array                   ; Posici?n del array
@@ -921,22 +888,15 @@ BORRAR:         dec Cont_TCL
 end_formar:     movb #$FF,Tecla_IN
                 rts
 
-;------------------------------------------------------------------------------
-;   Subrutina MODO_CONFIG: Esta subrutina corresponde a las operaciones necesarias
-;     llevar a cabo la configuracion del sistema. Primero pone el valor adecuado
-;     de los LEDS para que el usuario pueda saber el modo. Posteriormente, con
-;     el uso de TAREA_TECLADO se da la lectura del valor ValorVueltas. Una vez que el
-;     usuario presiona ENTER se valida que el valor de ValorVueltas este entre 5 y 25.
-;     Si es asi entonces coloca este valor en BIN1 para que pueda ser desplegado
-;     en los displays 3 y 4.
-;     INPUTS: ValorVueltas
-;     OUTPUTS: BIN1, BIN2
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 MODO_CONFIG:
                 BCLR Banderas,$80   ; borra bandera de competencia just in case
     ;si no es ni modo competencia ni modo resumen, se limpian VELOC, VUELTAS, VELPROM y se deshabilitan interrupciones por TCNT y PTH
                     clr VELOC
-		bclr TSCR2,$80
+        	bclr TSCR2,$80
     		bclr PIEH,$09
 		ldx #MSG_CONFIG1 ;carga el mensaje de configuracion
                 ldy #MSG_CONFIG2
@@ -973,13 +933,9 @@ VALIDO:
                 Clr Num_Array
                 rts
 
-;------------------------------------------------------------------------------
-;   Subrutina MODO_RESUM: Esta subrutina corresponde a la operacion del modo resumen.
-;      Carga el mensaje resume resumen en la pantalla LCD y los valores de VUELTAS y
-;      VELPROM en las pantallas de 7 segmentos.
-;      INPUTS: VUELTAS, VELPROM
-;      OUTPUTS: BIN1, BIN2
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
 
 MODO_RESUM:
                 bclr Banderas,$80    ;se actualiza el modo previo
@@ -991,15 +947,10 @@ MODO_RESUM:
                 movb VUELTAS,BIN2 ;carga los valores de VUELTAS y VELPROM en 7 segmentos
                 movb VELPROM,BIN1
                 rts
-;------------------------------------------------------------------------------
-;   Subrutina PANT_CTRL: Esta subrutina se encarga de manipular las pantallas
-;      en el modo competencia. Cuando se detecta el sensor S1 se pone el mensaje
-;      calculando. Cuando se activa S2, si la velocidad no esta en el rango valido,
-;      pone el mensaje de alerta en la pantalla LCD y pone rayas en la pantalla de 7 segmentos,
-;      caso contrario se comporta de acuerdo a las especificaciones definidas en el enunciado.
-;      INPUTS: VELOC, VUELTAS, PANT_FLG, CANT_VUELTAS_MAXIMA, VELOCIDAD_VAL, DISPLAY_CALC
-;      OUTPUTS: BIN1, BIN2
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 PANT_CTRL:
                 bclr PIEH,$09       ;deshabilita el puerto H
 
@@ -1085,13 +1036,14 @@ BIN1_BB_COMP_MSG:
 FIN_PANT:
 	       RTS
 
-;------------------------------------------------------------------------------
-;   Subrutina MODO_COMP: Esta subrutina corresponde a la operacion del modo competencia.
-;      Pasa revisando el valor de VELOC para acceder a PANT_CTRL
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 MODO_COMP:
                 brset Banderas,$80,ESTADO_COMPE ;revisa si ya esta se configuro la competencia una vez
-                bset Banderas,$80               ;se actualiza el modo previo
+                clr Banderas                    ;borra todas las baderas para inicial de nuevo
+		bset Banderas,$80               ;se actualiza el modo previo
                 ldx #MSG_LIBRE1                 ;se carga el mensaje inicial
                 ldy #MSG_ESPERA
                 jsr Cargar_LCD
@@ -1100,6 +1052,7 @@ MODO_COMP:
                 bset PIEH,$09                   ;se habilita keywakeup en PH0 y PH3.
                 movb #$BB,BIN1
                 movb #$BB,BIN2
+
                 clr ValorVueltas
                 clr VELOC
                 clr Num_Array
@@ -1121,17 +1074,14 @@ VEL_ZERO:
                 jsr PANT_CTRL
 
 FIN_COMP:
-                RTS
+                rts
 
 
 
-;------------------------------------------------------------------------------
-;   Subrutina MODO_LIBRE: Esta subrutina corresponde a la operacion del modo libre.
-;      Se imprime en pantalla el mensaje del modo libre, se apaga la pantalla de 7
-;      segmentos y se deshabilitan las interrupciones OC4 y RTI. Al deshabilitar la RTI
-;      no se realizan nuevos ciclos de conversion del ATD por lo que virtualmente esta
-;      deshabilitado.
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 MODO_LIBRE:
                 brclr CRGINT,$80,FIN_LIBRE  ;Revisa si ya estuvo en libre 1 vez para no volver a configurar
                 clr VELOC
@@ -1153,12 +1103,10 @@ FIN_LIBRE:
 
 
 
-;------------------------------------------------------------------------------
-;   Subrutina Cargar_LCD: esta subrutina se encarga de enviar a la pantalla LCD
-;     cada caracter, uno por uno, de ambas lineas del LCD. Recibe los parametros
-;     en los registros indice X y Y, que contienen las direcciones de inicio a
-;     los mensajes de las lineas 1 y 2 respectivamente.
-;------------------------------------------------------------------------------
+;===============================================================================
+;===============================================================================
+;===============================================================================
+
 Cargar_LCD:     ldaa ADD_L1                     ;inicio de linea
                 jsr Send_Command                ;env?a comando
                 movb D40uS,Cont_Delay           ;delay
@@ -1191,16 +1139,10 @@ LINEA2:         ldaa 1,y+                       ; Se va cargando mensaje
 
 TERMINA_LCD:    rts
 
-;------------------------------------------------------------------------------
-;   Subrutina BCD_7SEG: esta subrutina se encarga de tomar los valores en BCD1
-;     y BCD2 y determinar el valor de DISP1, DISP2, DISP3, DISP4. Estas ultimas
-;     cuatro variables son las que indican cuales segmentos de los displays se
-;     deben encender para que se muestre el numero deseado. Sencillamente se
-;     se analiza cada nibble de BCD1 y BCD2, y se toman decisiones a partir de
-;     sus valores.
+;===============================================================================
+;===============================================================================
+;===============================================================================
 
-
-;------------------------------------------------------------------------------
 BCD_7SEG:
                 Ldx #SEGMENT
                 Ldy #DISP4 ;Recorremos displays de derecha a izquierda

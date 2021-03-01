@@ -44,7 +44,7 @@ atddien    012d
 banderas   1000
 bcd1       1018
 bcd2       1019
-bcd_7seg   2766
+bcd_7seg   2769
 bcd_bin    23a7
 bcd_h      101b
 bcd_l      101a
@@ -232,8 +232,8 @@ can4terr   028f
 can4tflg   0286
 can4tier   0287
 can4txfg   02b0
-cargar_lcd 271f
-cargar_linea2 2742
+cargar_lcd 2722
+cargar_linea2 2745
 cforc      0041
 check_bin1_bb_comp 2677
 clear_display 0001
@@ -310,14 +310,14 @@ entry_mode_set 0006
 eom        0000
 eprot      0114
 eraseee    eeaa
-estado_compe 26cb
+estado_compe 26ce
 estat      0115
 fclkdiv    0100
 fcmd       0106
 fcnfg      0103
-fin_comp   26ea
+fin_comp   26ed
 fin_conv   2451
-fin_libre  271e
+fin_libre  2721
 fin_oc4    2333
 fin_pant   2694
 fin_ph0    21c4
@@ -359,8 +359,8 @@ itcr       0015
 itest      0016
 lazo       23d0
 leds       1022
-linea1     272e
-linea2     2751
+linea1     2731
+linea2     2754
 llamar_compe 2126
 llamar_confif 2134
 llamar_libre 211d
@@ -381,7 +381,7 @@ misc       0013
 mode       000b
 modo_comp  2695
 modo_config 2540
-modo_libre 26eb
+modo_libre 26ee
 modo_resum 25af
 modrr      0257
 msg_alerta1 10f6
@@ -530,7 +530,7 @@ refdv      0035
 regbase    0000
 retornar   24a3
 return_home 0002
-returnbcd_7seg 279e
+returnbcd_7seg 27a1
 rti_isr    225d
 rtictl     003b
 save_med   1032
@@ -601,7 +601,7 @@ tecla      1004
 tecla_in   1005
 teclas     1040
 temp       101c
-termina_lcd 2765
+termina_lcd 2768
 terminar   24cd
 tflg1      004e
 tflg2      004f
@@ -689,7 +689,7 @@ userxirq   3e74
 valido     2598
 valorvueltas 1002
 vectortable 3e00
-vel_zero   26e2
+vel_zero   26e5
 veloc      1011
 velocid_invalid 21be
 velprom    1013
