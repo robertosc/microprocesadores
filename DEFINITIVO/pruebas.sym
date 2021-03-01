@@ -532,7 +532,7 @@ return_home 0002
 returnbcd_7seg 27a0
 rti_isr    225d
 rtictl     003b
-save_med   1032
+save_med   1030
 sc0bdh     00c8
 sc0bdl     00c9
 sc0cr1     00ca
@@ -610,7 +610,7 @@ tickdis_rev 2215
 tickdis_zero 222a
 ticken_zero 21f9
 tickmed_full 2207
-ticks_time 1030
+ticks_100  1032
 tie        004c
 timer      2268
 timtst     006d

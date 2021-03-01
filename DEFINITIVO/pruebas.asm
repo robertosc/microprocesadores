@@ -98,8 +98,8 @@ CLEAR_LCD:      db $01  ;comando para limpiar el LCD
 ADD_L1:         db $80  ;direccion inicio de linea 1
 ADD_L2:         db $C0  ;direccion inicio de linea 2
 
-TICKS_TIME:     DS 2  ;Variable WORD utilizada para medir la cantidad de ticks que deben pasar para recorrer 100 m
-SAVE_MED:       DS 2
+SAVE_MED:       DS 2  ;WORD PARA LOS 55 M
+TICKS_100:      DS 2  ;Variable WORD utilizada para medir la cantidad de ticks que deben pasar para recorrer 100 m
 
                 org $1040
 Teclas:         db $01,$02,$03,$04,$05,$06,$07,$08,$09,$0B,$00,$0E ;valores de las teclas
@@ -224,7 +224,7 @@ BORRAR_ARRAY:
                 clr BCD1
                 clr BCD2
 
-                movw #$0000,TICKS_TIME
+                movw #$0000,TICKS_100
                 movw #$0000,TICK_EN
                 movw #$0000,TICK_DIS
                 clr Banderas
@@ -343,7 +343,7 @@ PH0_ISR:
                 bhi VELOCID_INVALID             
                 cpx #48                         ;48 ticks para 95 km/h, llimite inferior
                 blo VELOCID_INVALID             
-                stx TICKS_TIME                  ;se guarda la cantidad de ticks necesarios para recorrer 55 m
+                stx TICKS_100                  ;se guarda la cantidad de ticks necesarios para recorrer 55 m
                 ldd #4532                       ;D = 4532
                 idiv                            
                 tfr X,D                         ;veloc = 4532/TICKS 
@@ -892,8 +892,8 @@ end_formar:     movb #$FF,Tecla_IN
 MODO_CONFIG:
                 BCLR Banderas,$80   ; borra bandera de competencia just in case
                     clr VELOC
-        	bclr TSCR2,$80
-    		bclr PIEH,$09
+                bclr TSCR2,$80
+            	bclr PIEH,$09
 		ldx #MSG_CONFIG1 ;carga el mensaje de configuracion
                 ldy #MSG_CONFIG2
                 jsr Cargar_LCD
@@ -961,19 +961,19 @@ PANT_CTRL:
                 BSET Banderas,$10 ;si CALC_TICKS es 0, se realizan los calculos asociados y se pone en 1
 
 
-		ldy #55 ;los ticks leidos son medidos en 55m
+		ldy TICKS_100 ;los ticks leidos son medidos en 55m
 		ldd #100 ;se multiplican por 100
                 emul ;D tiene la cantidad de ticks que pasan en 5500 m
                 ldx #55 ; divide entre 55 y quedan 100m
                 idiv 
-                stx TICKS_TIME ;TICKS que pasan en 100 m para medir el tiempo que se tarda en mostrar mensaje
+                stx TICKS_100 ;TICKS que pasan en 100 m para medir el tiempo que se tarda en mostrar mensaje
 
 		tfr x,d
-                addd TICKS_TIME
+                addd TICKS_100
                 std TICK_EN ;TICKS para 200m
-                addd TICKS_TIME
+                addd TICKS_100
                 std TICK_DIS ;TICKS para 300m
-                movw #$0000,TICKS_TIME ;se borra el temporizador de 100m
+                movw #$0000,TICKS_100 ;se borra el temporizador de 100m
                 rts
                 
 VALID_PANT:
@@ -990,7 +990,7 @@ INVALID_PANT:	ldaa BIN1               ;la velocidad es invalida, se revisa si BI
                 movw #69,TICK_DIS       ;mantiene 3s
                 movb #$AA,BIN1          ;se ponen rayas en la pantalla de 7 segmentos
                 movb #$AA,BIN2
-                bset Banderas %00001000 ;se levanta PANT_FLG
+                bset Banderas,$08 ;se levanta PANT_FLG
                 ldx #MSG_ALERTA1        ;se carga el mensaje de alerta
                 ldy #MSG_ALERTA2
                 jsr Cargar_LCD

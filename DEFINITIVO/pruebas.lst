@@ -712,7 +712,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 1022                    LEDS:           ds 1  ;PB1 para modo CONFIG, PB0 a modo RUN.
 1023                    CONT_DIG:       ds 1  ;Habilitador de pantalla
 1024                    CONT_TICKS:     ds 1  ;contador para el Output Compare
-1025                    DT:             ds 1  ;ciclo de trabajo. DT = N-K
+1025                    DT:             ds 1  ;ciclo de trabajoDT = N-K
 1026                    CONT_7SEG:      ds 2  ;contador de ticks de OC4
                         
 1028                    CONT_200:       ds 1
@@ -725,8 +725,8 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 102e 80                 ADD_L1:         db $80  ;direccion inicio de linea 1
 102f c0                 ADD_L2:         db $C0  ;direccion inicio de linea 2
                         
-1030                    TICKS_TIME:     DS 2  ;Variable WORD utilizada para medir la cantidad de ticks que deben pasar para recorrer 100 m
-1032                    SAVE_MED:       DS 2
+1030                    SAVE_MED:       DS 2  ;WORD PARA LOS 55 M
+1032                    TICKS_100:      DS 2  ;Variable WORD utilizada para medir la cantidad de ticks que deben pasar para recorrer 100 m
                         
 1040                                    org $1040
 1040 01 02 03 04 05 06  Teclas:         db $01,$02,$03,$04,$05,$06,$07,$08,$09,$0B,$00,$0E ;valores de las teclas
@@ -875,7 +875,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2097 79 10 18                           clr BCD1
 209a 79 10 19                           clr BCD2
                         
-209d 18 03 00 00 10 30                  movw #$0000,TICKS_TIME
+209d 18 03 00 00 10 32                  movw #$0000,TICKS_100
 20a3 18 03 00 00 10 0d                  movw #$0000,TICK_EN
 20a9 18 03 00 00 10 0f                  movw #$0000,TICK_DIS
 20af 79 10 00                           clr Banderas
@@ -989,12 +989,12 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 216c 26 56                              bne FIN_PH0
 216e 18 0b 64 10 06                     movb #100,Cont_Reb              ;configur rebotes
 2173 fe 10 14                           ldx TICK_MED                    ;se lee los ticks medidos
-2176 18 04 10 14 10 32                  movw TICK_MED,SAVE_MED
+2176 18 04 10 14 10 30                  movw TICK_MED,SAVE_MED
 217c 8e 00 81                           cpx #129                        ;129 ticks para 35 km/h, limite inferior
 217f 22 3d                              bhi VELOCID_INVALID             
 2181 8e 00 30                           cpx #48                         ;48 ticks para 95 km/h, llimite inferior
 2184 25 38                              blo VELOCID_INVALID             
-2186 7e 10 30                           stx TICKS_TIME                  ;se guarda la cantidad de ticks necesarios para recorrer 55 m
+2186 7e 10 32                           stx TICKS_100                  ;se guarda la cantidad de ticks necesarios para recorrer 55 m
 2189 cc 11 b4                           ldd #4532                       ;D = 4532
 218c 18 10                              idiv                            
 218e b7 54                              tfr X,D                         ;veloc = 4532/TICKS 
@@ -1035,7 +1035,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 21c5 1c 02 67 08                        bset PIFH,$08                   ;limpia bandera de interrup para volver a usarla
 21c9 f7 10 06                           tst Cont_Reb
 21cc 26 12                              bne FIN_PH3
-21ce 79 10 32                           clr SAVE_MED
+21ce 79 10 30                           clr SAVE_MED
 21d1 1c 10 00 40                        BSET Banderas,$40               ;activa DISPLAY_CALC
 21d5 18 0b 64 10 06                     movb #100,Cont_Reb              ;recarga contadore de rebases
 21da 18 03 00 00 10 14                  movw #$0000,TICK_MED            ;se borra TICK_MED
@@ -1543,8 +1543,8 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 2540                    MODO_CONFIG:
 2540 1d 10 00 80                        BCLR Banderas,$80   ; borra bandera de competencia just in case
 2544 79 10 11                               clr VELOC
-2547 4d 4d 80                   	bclr TSCR2,$80
-254a 1d 02 66 09            		bclr PIEH,$09
+2547 4d 4d 80                           bclr TSCR2,$80
+254a 1d 02 66 09                    	bclr PIEH,$09
 254e ce 10 b2           		ldx #MSG_CONFIG1 ;carga el mensaje de configuracion
 2551 cd 10 c3                           ldy #MSG_CONFIG2
 2554 16 27 21                           jsr Cargar_LCD
@@ -1601,30 +1601,30 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 25d2                    PANT_CTRL:
 25d2 1d 02 66 09                        bclr PIEH,$09       ;deshabilita el puerto H
                         
-25d6 fe 10 32                           ldx SAVE_MED        ;se trean los ticks alcanzados
+25d6 fe 10 30                           ldx SAVE_MED        ;se trean los ticks alcanzados
 25d9 8e 00 81                           cpx #129            ;129 ticks son 35 km/h, limite inferior
 25dc 22 42                              bhi INVALID_PANT 
 25de 8e 00 30                           cpx #48             ;95 ticks 95 km/h, limite superior
 25e1 25 3d                              blo INVALID_PANT 
-25e3 79 10 32                           clr SAVE_MED
+25e3 79 10 30                           clr SAVE_MED
                         
 25e6 1e 10 00 10 28     		BRSET Banderas,$10,VALID_PANT ;La velocidad es valida, se revisa CALC_TICKS
 25eb 1c 10 00 10                        BSET Banderas,$10 ;si CALC_TICKS es 0, se realizan los calculos asociados y se pone en 1
                         
                         
-25ef cd 00 37           		ldy #55 ;los ticks leidos son medidos en 55m
+25ef fd 10 32           		ldy TICKS_100 ;los ticks leidos son medidos en 55m
 25f2 cc 00 64           		ldd #100 ;se multiplican por 100
 25f5 13                                 emul ;D tiene la cantidad de ticks que pasan en 5500 m
 25f6 ce 00 37                           ldx #55 ; divide entre 55 y quedan 100m
 25f9 18 10                              idiv 
-25fb 7e 10 30                           stx TICKS_TIME ;TICKS que pasan en 100 m para medir el tiempo que se tarda en mostrar mensaje
+25fb 7e 10 32                           stx TICKS_100 ;TICKS que pasan en 100 m para medir el tiempo que se tarda en mostrar mensaje
                         
 25fe b7 54              		tfr x,d
-2600 f3 10 30                           addd TICKS_TIME
+2600 f3 10 32                           addd TICKS_100
 2603 7c 10 0d                           std TICK_EN ;TICKS para 200m
-2606 f3 10 30                           addd TICKS_TIME
+2606 f3 10 32                           addd TICKS_100
 2609 7c 10 0f                           std TICK_DIS ;TICKS para 300m
-260c 18 03 00 00 10 30                  movw #$0000,TICKS_TIME ;se borra el temporizador de 100m
+260c 18 03 00 00 10 32                  movw #$0000,TICKS_100 ;se borra el temporizador de 100m
 2612 3d                                 rts
                                         
 2613                    VALID_PANT:
@@ -1641,7 +1641,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 262d 18 03 00 45 10 0f                  movw #69,TICK_DIS       ;mantiene 3s
 2633 18 0b aa 10 16                     movb #$AA,BIN1          ;se ponen rayas en la pantalla de 7 segmentos
 2638 18 0b aa 10 17                     movb #$AA,BIN2
-263d 1c 10 00 08                        bset Banderas %00001000 ;se levanta PANT_FLG
+263d 1c 10 00 08                        bset Banderas,$08 ;se levanta PANT_FLG
 2641 ce 10 f6                           ldx #MSG_ALERTA1        ;se carga el mensaje de alerta
 2644 cd 11 06                           ldy #MSG_ALERTA2
 2647 16 27 21                           jsr Cargar_LCD
@@ -1818,6 +1818,6 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         
 27a0 3d                 returnBCD_7SEG: Rts
 
-Executed: Sun Feb 28 20:53:19 2021
-Total cycles: 2256, Total bytes: 2183
+Executed: Mon Mar 01 00:33:48 2021
+Total cycles: 2258, Total bytes: 2183
 Total errors: 0, Total warnings: 0
