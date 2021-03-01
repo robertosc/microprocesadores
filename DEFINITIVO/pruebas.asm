@@ -15,6 +15,15 @@
 ;===============================================================================
 ;     Declaracion de las estructuras de datos y vectores de interrupcion
 ;===============================================================================
+;LCD:
+EOM:            EQU $00
+CLEAR_DISPLAY:  EQU $01
+RETURN_HOME:    EQU $02
+ENTRY_MODE_SET: EQU $06
+DISPLAY_ON:     EQU $0C
+DDRAM_ADDR1:    EQU $80
+DDRAM_ADDR2:    EQU $C0
+FUNCTION_SET:   EQU $28
 
 ;Interrupciones
                 org $3E4C   ;Interrupcion PTH
@@ -108,15 +117,6 @@ SEGMENT:        db $3F,$06,$5B,$4F,$66,$6D,$7D,$07,$7F,$6F,$40,$00 ;patrones par
                 org $1060
 iniDsp:         db 4,FUNCTION_SET,FUNCTION_SET,ENTRY_MODE_SET,DISPLAY_ON
 
-;LCD:
-EOM:            EQU $00
-CLEAR_DISPLAY:  EQU $01
-RETURN_HOME:    EQU $02
-ENTRY_MODE_SET: EQU $06
-DISPLAY_ON:     EQU $0C
-DDRAM_ADDR1:    EQU $80
-DDRAM_ADDR2:    EQU $C0
-FUNCTION_SET:   EQU $28
 
                 ORG $1070 ;mensajes
 MSG_LIBRE1:     fcc "  RunMeter 623  "
@@ -153,16 +153,16 @@ MSG_RESUMEN:    fcc "  MODO RESUMEN  "
 ;DIPSWITCH PH7 Y PH6
                 bclr DDRH,$C0
 
-;Configuracion RTI:
+;Configuracion RTI
                 bset CRGINT $80             ;Habilita RTI
                 movb #$17,RTICTL            ;periodo 1.024ms
 
-;Keywakeup en puerto H:
+;Keywakeup en puerto H
                 bclr PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
                 movb #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
 
 
-;Output Compare en Canal 4:
+;Output Compare en Canal 4
                 bset TIOS $10 ;Habilida canal 4
                 bset TIE $10 ;Interrup en canal 4
                 bclr TCTL1 $03
@@ -180,9 +180,9 @@ MSG_RESUMEN:    fcc "  MODO RESUMEN  "
 ;Configuracion del ATD
                 movb #$30,ATD0CTL3
                 movb #$B3,ATD0CTL4
-                movb #$87,ATD0CTL5
+                movb #$80,ATD0CTL5
 
-;Teclado puerto A:
+;Teclado puerto A
                 movb #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
                 bset PUCR $01       ;resistencias de pullup para el teclado
 
@@ -365,7 +365,7 @@ BCD_BIN:        ldx #Num_Array
                 bra DECENA         ;lee decenas
 
 UNIDAD:
-		movb Num_Array,ValorVueltas
+                movb Num_Array,ValorVueltas
                 rts
 
 DECENA:
@@ -1149,5 +1149,4 @@ MODO_LIBRE:
                 movb #$01,PORTB             ;enciende los leds
 FIN_LIBRE:
                 rts
-
 

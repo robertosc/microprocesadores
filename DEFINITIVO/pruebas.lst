@@ -642,6 +642,15 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         ;===============================================================================
                         ;     Declaracion de las estructuras de datos y vectores de interrupcion
                         ;===============================================================================
+                        ;LCD:
+0000                    EOM:            EQU $00
+0001                    CLEAR_DISPLAY:  EQU $01
+0002                    RETURN_HOME:    EQU $02
+0006                    ENTRY_MODE_SET: EQU $06
+000c                    DISPLAY_ON:     EQU $0C
+0080                    DDRAM_ADDR1:    EQU $80
+00c0                    DDRAM_ADDR2:    EQU $C0
+0028                    FUNCTION_SET:   EQU $28
                         
                         ;Interrupciones
 3e4c                                    org $3E4C   ;Interrupcion PTH
@@ -737,15 +746,6 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 1060                                    org $1060
 1060 04 28 28 06 0c     iniDsp:         db 4,FUNCTION_SET,FUNCTION_SET,ENTRY_MODE_SET,DISPLAY_ON
                         
-                        ;LCD:
-0000                    EOM:            EQU $00
-0001                    CLEAR_DISPLAY:  EQU $01
-0002                    RETURN_HOME:    EQU $02
-0006                    ENTRY_MODE_SET: EQU $06
-000c                    DISPLAY_ON:     EQU $0C
-0080                    DDRAM_ADDR1:    EQU $80
-00c0                    DDRAM_ADDR2:    EQU $C0
-0028                    FUNCTION_SET:   EQU $28
                         
 1070                                    ORG $1070 ;mensajes
 1070 20 20 52 75 6e 4d  MSG_LIBRE1:     fcc "  RunMeter 623  "
@@ -804,16 +804,16 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         ;DIPSWITCH PH7 Y PH6
 2005 1d 02 62 c0                        bclr DDRH,$C0
                         
-                        ;Configuracion RTI:
+                        ;Configuracion RTI
 2009 4c 38 80                           bset CRGINT $80             ;Habilita RTI
 200c 18 0b 17 00 3b                     movb #$17,RTICTL            ;periodo 1.024ms
                         
-                        ;Keywakeup en puerto H:
+                        ;Keywakeup en puerto H
 2011 1d 02 66 0f                        bclr PIEH,$0F   ;se deshabilita keywakeup en PH0 y PH3.
 2015 18 0b 00 02 65                     movb #$00,PPSH ;las interrupciones deben ocurrir en el flanco decreciente.
                         
                         
-                        ;Output Compare en Canal 4:
+                        ;Output Compare en Canal 4
 201a 4c 40 10                           bset TIOS $10 ;Habilida canal 4
 201d 4c 4c 10                           bset TIE $10 ;Interrup en canal 4
 2020 4d 48 03                           bclr TCTL1 $03
@@ -831,9 +831,9 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
                         ;Configuracion del ATD
 203c 18 0b 30 00 83                     movb #$30,ATD0CTL3
 2041 18 0b b3 00 84                     movb #$B3,ATD0CTL4
-2046 18 0b 87 00 85                     movb #$87,ATD0CTL5
+2046 18 0b 80 00 85                     movb #$80,ATD0CTL5
                         
-                        ;Teclado puerto A:
+                        ;Teclado puerto A
 204b 18 0b f0 00 02                     movb #$F0,DDRA        ;parte alta de A como salida y parte baja como entrada
 2050 4c 0c 01                           bset PUCR $01       ;resistencias de pullup para el teclado
                         
@@ -1016,7 +1016,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 21d5 20 07                              bra DECENA         ;lee decenas
                         
 21d7                    UNIDAD:
-21d7 18 0c 10 09 10 02  		movb Num_Array,ValorVueltas
+21d7 18 0c 10 09 10 02                  movb Num_Array,ValorVueltas
 21dd 3d                                 rts
                         
 21de                    DECENA:
@@ -1801,8 +1801,7 @@ eeb2                    WriteMem equ    $EEB2   ; FAR call
 27a0                    FIN_LIBRE:
 27a0 3d                                 rts
                         
-                        
 
-Executed: Mon Mar 01 08:24:39 2021
+Executed: Mon Mar 01 08:41:30 2021
 Total cycles: 2258, Total bytes: 2183
 Total errors: 0, Total warnings: 0
